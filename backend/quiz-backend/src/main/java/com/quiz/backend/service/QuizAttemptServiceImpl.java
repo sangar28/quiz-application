@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -113,7 +115,11 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz is not active");
         }
 
-        List<Question> questions = questionRepository.findByQuizId(quiz.getId());
+        List<Question> questions = new ArrayList<>(questionRepository.findByQuizId(quiz.getId()));
+        if (quiz.isRandomQuestions()) {
+            Collections.shuffle(questions);
+        }
+
         return questions.stream()
                 .map(q -> new QuestionResponseDTO(
                         q.getId(),

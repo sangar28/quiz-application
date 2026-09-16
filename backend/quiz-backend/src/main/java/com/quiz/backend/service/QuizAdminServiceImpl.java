@@ -53,6 +53,21 @@ public class QuizAdminServiceImpl implements QuizAdminService {
         quiz.setShowScore(request.isShowScore());
         quiz.setShowCorrectAnswers(request.isShowCorrectAnswers());
         quiz.setActive(request.isActive());
+        quiz.setAllowCopy(request.isAllowCopy());
+        quiz.setAllowPaste(request.isAllowPaste());
+        quiz.setAllowRightClick(request.isAllowRightClick());
+        quiz.setDetectTabSwitch(request.isDetectTabSwitch());
+        quiz.setAutoSubmitOnViolation(request.isAutoSubmitOnViolation());
+        if (request.getViolationThreshold() != null) {
+            if (request.getViolationThreshold() <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "violationThreshold must be greater than 0");
+            }
+            quiz.setViolationThreshold(request.getViolationThreshold());
+        }
+        quiz.setAllowPreviousQuestion(request.isAllowPreviousQuestion());
+        quiz.setRandomQuestions(request.isRandomQuestions());
+        quiz.setRandomOptions(request.isRandomOptions());
+        quiz.setImmediateResult(request.isImmediateResult());
 
         Quiz updatedQuiz = quizRepository.save(quiz);
         return mapToAdminQuizResponseDTO(updatedQuiz);
@@ -118,7 +133,17 @@ public class QuizAdminServiceImpl implements QuizAdminService {
                 quiz.getDurationMinutes(),
                 quiz.isActive(),
                 quiz.isShowScore(),
-                quiz.isShowCorrectAnswers()
+                quiz.isShowCorrectAnswers(),
+                quiz.isAllowCopy(),
+                quiz.isAllowPaste(),
+                quiz.isAllowRightClick(),
+                quiz.isDetectTabSwitch(),
+                quiz.isAutoSubmitOnViolation(),
+                quiz.getViolationThreshold(),
+                quiz.isAllowPreviousQuestion(),
+                quiz.isRandomQuestions(),
+                quiz.isRandomOptions(),
+                quiz.isImmediateResult()
         );
     }
 
