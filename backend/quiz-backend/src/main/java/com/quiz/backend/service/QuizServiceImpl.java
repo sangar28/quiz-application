@@ -5,8 +5,10 @@ import com.quiz.backend.dto.QuizResponseDTO;
 import com.quiz.backend.entity.Question;
 import com.quiz.backend.repository.QuestionRepository;
 import com.quiz.backend.repository.QuizRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,7 +41,7 @@ public class QuizServiceImpl implements QuizService {
     @Override
     public List<QuestionResponseDTO> getQuizQuestions(Long quizId) {
         if (!quizRepository.existsById(quizId)) {
-            throw new RuntimeException("Quiz not found with id: " + quizId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found with id: " + quizId);
         }
 
         List<Question> questions = questionRepository.findByQuizId(quizId);
