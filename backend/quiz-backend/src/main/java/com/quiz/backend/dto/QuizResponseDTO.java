@@ -18,6 +18,9 @@ public class QuizResponseDTO {
     private boolean randomQuestions;
     private boolean randomOptions;
     private boolean immediateResult;
+    private boolean alreadySubmitted;
+    private boolean retakeApproved;
+    private Long activeAttemptId;
 
     public QuizResponseDTO() {
     }
@@ -172,5 +175,29 @@ public class QuizResponseDTO {
 
     public void setImmediateResult(boolean immediateResult) {
         this.immediateResult = immediateResult;
+    }
+
+    public boolean isAlreadySubmitted() {
+        return alreadySubmitted;
+    }
+
+    public void setAlreadySubmitted(boolean alreadySubmitted) {
+        this.alreadySubmitted = alreadySubmitted;
+    }
+
+    public boolean isRetakeApproved() {
+        return retakeApproved;
+    }
+
+    public void setRetakeApproved(boolean retakeApproved) {
+        this.retakeApproved = retakeApproved;
+    }
+
+    public Long getActiveAttemptId() {
+        return activeAttemptId;
+    }
+
+    public void setActiveAttemptId(Long activeAttemptId) {
+        this.activeAttemptId = activeAttemptId;
     }
 }

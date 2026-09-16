@@ -9,4 +9,6 @@ public interface ResultService {
     List<AdminResultResponseDTO> getAllResults();
 
     List<AdminResultResponseDTO> getResultsByQuiz(Long quizId);
+
+    AdminResultResponseDTO approveRetake(Long resultId);
 }

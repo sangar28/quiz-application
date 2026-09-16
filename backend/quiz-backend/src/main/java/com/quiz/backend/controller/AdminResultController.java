@@ -28,4 +28,9 @@ public class AdminResultController {
     public ResponseEntity<List<AdminResultResponseDTO>> getResultsByQuiz(@PathVariable Long quizId) {
         return ResponseEntity.ok(resultService.getResultsByQuiz(quizId));
     }
+
+    @PostMapping("/{resultId}/approve-retake")
+    public ResponseEntity<AdminResultResponseDTO> approveRetake(@PathVariable Long resultId) {
+        return ResponseEntity.ok(resultService.approveRetake(resultId));
+    }
 }

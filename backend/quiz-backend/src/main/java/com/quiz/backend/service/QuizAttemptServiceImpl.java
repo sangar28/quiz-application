@@ -76,6 +76,20 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
             }
         }
 
+        // Check if student has already submitted a result for this quiz
+        Optional<Result> latestResultOpt = resultRepository
+                .findTopByUserIdAndQuizIdOrderBySubmittedAtDesc(user.getId(), quizId);
+
+        if (latestResultOpt.isPresent()) {
+            Result latestResult = latestResultOpt.get();
+            if (!latestResult.isRetakeApproved()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz has already been submitted. A retake requires admin approval.");
+            }
+            // Consume the approved retake so it cannot be repeatedly reused
+            latestResult.setRetakeApproved(false);
+            resultRepository.save(latestResult);
+        }
+
         LocalDateTime startedAt = LocalDateTime.now();
         int duration = quiz.getDurationMinutes() != null ? quiz.getDurationMinutes() : 0;
         LocalDateTime expiresAt = startedAt.plusMinutes(duration);
@@ -184,6 +198,8 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
 
         Result result = new Result(user, attempt.getQuiz(), score, questions.size());
+        result.setAttemptId(attemptId);
+        result.setRetakeApproved(false);
         result = resultRepository.save(result);
 
         attempt.setSubmitted(true);
@@ -216,9 +232,10 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz attempt has not been submitted yet");
         }
 
-        Result result = resultRepository
-                .findTopByUserIdAndQuizIdOrderBySubmittedAtDesc(user.getId(), attempt.getQuiz().getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Result not found for attempt"));
+        Result result = resultRepository.findByAttemptId(attemptId)
+                .orElseGet(() -> resultRepository
+                        .findTopByUserIdAndQuizIdOrderBySubmittedAtDesc(user.getId(), attempt.getQuiz().getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Result not found for attempt")));
 
         Integer displayScore = attempt.getQuiz().isShowScore() ? result.getScore() : null;
 

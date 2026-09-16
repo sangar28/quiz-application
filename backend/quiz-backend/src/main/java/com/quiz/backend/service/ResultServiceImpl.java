@@ -44,6 +44,18 @@ public class ResultServiceImpl implements ResultService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional
+    public AdminResultResponseDTO approveRetake(Long resultId) {
+        Result result = resultRepository.findById(resultId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Result not found with id: " + resultId));
+
+        result.setRetakeApproved(true);
+        result = resultRepository.save(result);
+
+        return mapToAdminResultResponseDTO(result);
+    }
+
     private AdminResultResponseDTO mapToAdminResultResponseDTO(Result result) {
         String studentName = result.getUser() != null ? result.getUser().getName() : null;
         String studentEmail = result.getUser() != null ? result.getUser().getEmail() : null;
@@ -56,7 +68,8 @@ public class ResultServiceImpl implements ResultService {
                 quizTitle,
                 result.getScore(),
                 result.getTotalQuestions(),
-                result.getSubmittedAt()
+                result.getSubmittedAt(),
+                result.isRetakeApproved()
         );
     }
 }

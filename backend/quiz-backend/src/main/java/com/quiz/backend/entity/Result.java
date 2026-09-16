@@ -29,6 +29,12 @@ public class Result {
     @Column(nullable = false)
     private LocalDateTime submittedAt;
 
+    @Column(nullable = false)
+    private boolean retakeApproved = false;
+
+    @Column(name = "attempt_id")
+    private Long attemptId;
+
     public Result() {
     }
 
@@ -38,6 +44,7 @@ public class Result {
         this.score = score;
         this.totalQuestions = totalQuestions;
         this.submittedAt = LocalDateTime.now();
+        this.retakeApproved = false;
     }
 
     public Long getId() {
@@ -86,5 +93,21 @@ public class Result {
 
     public void setSubmittedAt(LocalDateTime submittedAt) {
         this.submittedAt = submittedAt;
+    }
+
+    public boolean isRetakeApproved() {
+        return retakeApproved;
+    }
+
+    public void setRetakeApproved(boolean retakeApproved) {
+        this.retakeApproved = retakeApproved;
+    }
+
+    public Long getAttemptId() {
+        return attemptId;
+    }
+
+    public void setAttemptId(Long attemptId) {
+        this.attemptId = attemptId;
     }
 }

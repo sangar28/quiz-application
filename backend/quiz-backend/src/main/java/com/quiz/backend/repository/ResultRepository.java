@@ -15,4 +15,6 @@ public interface ResultRepository extends JpaRepository<Result, Long> {
     Optional<Result> findByUserIdAndQuizId(Long userId, Long quizId);
 
     Optional<Result> findTopByUserIdAndQuizIdOrderBySubmittedAtDesc(Long userId, Long quizId);
+
+    Optional<Result> findByAttemptId(Long attemptId);
 }
