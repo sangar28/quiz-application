@@ -1,6 +1,5 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export const LoginPage = () => {
   const { authenticated, role, loading } = useAuth();
@@ -15,14 +14,14 @@ export const LoginPage = () => {
   }
 
   if (authenticated) {
-    if (role === 'ADMIN') {
+    if (role === "ADMIN") {
       return <Navigate to="/admin" replace />;
     }
     return <Navigate to="/student" replace />;
   }
 
   const handleGoogleLogin = () => {
-   window.location.href = `${import.meta.env.VITE_API_URL}/oauth2/authorization/google`;
+    window.location.href = `${import.meta.env.VITE_API_URL}/oauth2/authorization/google`;
   };
 
   return (
