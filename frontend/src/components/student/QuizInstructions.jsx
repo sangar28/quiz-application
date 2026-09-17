@@ -17,7 +17,12 @@ export const QuizInstructions = () => {
       setLoading(true);
       setError(null);
       try {
-        const quizzes = await getActiveQuizzes();
+        const data = await getActiveQuizzes();
+        const quizzes = Array.isArray(data)
+          ? data
+          : data && Array.isArray(data.data)
+          ? data.data
+          : [];
         const found = quizzes.find((q) => String(q.id) === String(quizId));
         if (!found) {
           setError('The requested quiz was not found or is currently inactive.');

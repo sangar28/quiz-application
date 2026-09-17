@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getMe } from '../api/authApi';
+import { getMe, logoutApi } from '../api/authApi';
 
 const AuthContext = createContext(null);
 
@@ -28,6 +28,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const logout = useCallback(async () => {
+    try {
+      await logoutApi();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setUser(null);
+      setRole(null);
+      setAuthenticated(false);
+    }
+  }, []);
+
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
@@ -40,6 +52,7 @@ export const AuthProvider = ({ children }) => {
         authenticated,
         loading,
         refreshUser: checkAuth,
+        logout,
       }}
     >
       {children}

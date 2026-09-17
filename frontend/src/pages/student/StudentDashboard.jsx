@@ -16,9 +16,18 @@ export const StudentDashboard = () => {
       setError(null);
       try {
         const data = await getActiveQuizzes();
-        setQuizzes(data || []);
+        if (Array.isArray(data)) {
+          setQuizzes(data);
+        } else if (data && Array.isArray(data.data)) {
+          setQuizzes(data.data);
+        } else if (data && Array.isArray(data.quizzes)) {
+          setQuizzes(data.quizzes);
+        } else {
+          setQuizzes([]);
+        }
       } catch (err) {
         setError(formatApiError(err, 'Failed to fetch available quizzes.'));
+        setQuizzes([]);
       } finally {
         setLoading(false);
       }
@@ -66,7 +75,8 @@ export const StudentDashboard = () => {
               </p>
             </div>
             <span className="badge badge-info">
-              {quizzes.length} {quizzes.length === 1 ? 'Quiz' : 'Quizzes'} Available
+              {Array.isArray(quizzes) ? quizzes.length : 0}{' '}
+              {(Array.isArray(quizzes) ? quizzes.length : 0) === 1 ? 'Quiz' : 'Quizzes'} Available
             </span>
           </div>
 
@@ -75,7 +85,7 @@ export const StudentDashboard = () => {
               <div className="spinner"></div>
               <p>Loading available assessments...</p>
             </div>
-          ) : quizzes.length === 0 ? (
+          ) : !Array.isArray(quizzes) || quizzes.length === 0 ? (
             <div className="empty-state-card">
               <div className="empty-state-icon">📝</div>
               <h4>No quizzes are currently available.</h4>

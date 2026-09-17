@@ -15,3 +15,8 @@ export const getMe = async () => {
     authorities,
   };
 };
+
+export const logoutApi = async () => {
+  const response = await apiClient.post('/api/auth/logout');
+  return response.data;
+};

@@ -21,7 +21,8 @@ export const LoginPage = () => {
   }
 
   const handleGoogleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/oauth2/authorization/google`;
+    const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    window.location.href = `${backendUrl}/oauth2/authorization/google`;
   };
 
   return (

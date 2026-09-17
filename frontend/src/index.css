@@ -299,10 +299,12 @@ body {
   font-weight: 600;
 }
 
-.admin-user-info {
+.admin-user-info,
+.student-user-info {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .user-avatar {
@@ -316,23 +318,70 @@ body {
   justify-content: center;
   font-weight: 700;
   font-size: 0.95rem;
+  flex-shrink: 0;
 }
 
 .user-details-nav {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: 1.25;
+  max-width: 170px;
+  overflow: hidden;
 }
 
 .user-name {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-email {
   font-size: 0.75rem;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logout-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: #dc2626 !important;
+  background-color: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.logout-btn:hover {
+  background-color: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1);
+}
+
+.logout-btn .logout-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  stroke: #dc2626;
+  transition: stroke 0.15s ease-in-out;
+}
+
+.logout-btn:hover .logout-icon {
+  stroke: #b91c1c;
 }
 
 /* Main Content */
@@ -2264,6 +2313,12 @@ body {
 
 .result-footer {
   padding-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .user-details-nav {
+    display: none;
+  }
 }
 
 

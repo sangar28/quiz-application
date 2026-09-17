@@ -82,6 +82,14 @@ function App() {
             }
           />
           <Route
+            path="/admin/quizzes"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <QuizManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/quizzes/:quizId"
             element={
               <ProtectedRoute requiredRole="ADMIN">

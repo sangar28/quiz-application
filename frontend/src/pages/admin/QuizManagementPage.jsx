@@ -17,6 +17,7 @@ export const QuizManagementPage = () => {
   const { quizId } = useParams();
   const navigate = useNavigate();
 
+  const [allQuizzes, setAllQuizzes] = useState([]);
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,17 +33,34 @@ export const QuizManagementPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const allQuizzes = await getAllQuizzes();
-      const current = allQuizzes.find((q) => String(q.id) === String(quizId));
-      if (!current) {
-        setError(`Quiz with ID ${quizId} was not found.`);
+      const qList = await getAllQuizzes();
+      const availableQuizzes = qList || [];
+      setAllQuizzes(availableQuizzes);
+
+      if (availableQuizzes.length === 0) {
+        setQuiz(null);
+        setQuestions([]);
         return;
       }
-      setQuiz(current);
 
+      let current = null;
+      if (quizId) {
+        current = availableQuizzes.find((q) => String(q.id) === String(quizId));
+        if (!current) {
+          setError(`Quiz with ID ${quizId} was not found.`);
+          setQuiz(null);
+          setQuestions([]);
+          return;
+        }
+      } else {
+        // When on /admin/quizzes without a specific quizId, default to the first quiz
+        current = availableQuizzes[0];
+      }
+
+      setQuiz(current);
       setQuestionsLoading(true);
-      const qList = await getQuizQuestions(quizId);
-      setQuestions(qList || []);
+      const questionsList = await getQuizQuestions(current.id);
+      setQuestions(questionsList || []);
     } catch (err) {
       setError(formatApiError(err, 'Failed to load quiz details.'));
     } finally {
@@ -55,11 +73,17 @@ export const QuizManagementPage = () => {
     loadData();
   }, [loadData]);
 
+  // Switch selected quiz via dropdown
+  const handleSelectQuiz = (selectedId) => {
+    navigate(`/admin/quizzes/${selectedId}`);
+  };
+
   // Refresh question list after Excel upload or manual add
   const refreshQuestions = async () => {
+    if (!quiz) return;
     setQuestionsLoading(true);
     try {
-      const qList = await getQuizQuestions(quizId);
+      const qList = await getQuizQuestions(quiz.id);
       setQuestions(qList || []);
     } catch (err) {
       setError(formatApiError(err, 'Failed to refresh questions.'));
@@ -96,6 +120,9 @@ export const QuizManagementPage = () => {
     try {
       const updated = await updateQuiz(quiz.id, payload);
       setQuiz(updated);
+      setAllQuizzes((prev) =>
+        prev.map((q) => (q.id === updated.id ? updated : q))
+      );
       setFeedback(`Quiz status changed to ${updated.active ? 'Active' : 'Inactive'}.`);
     } catch (err) {
       setError(formatApiError(err, 'Failed to update status.'));
@@ -117,8 +144,9 @@ export const QuizManagementPage = () => {
 
   // Manual add question
   const handleAddQuestion = async (questionData) => {
+    if (!quiz) return;
     try {
-      const created = await addQuestion(quizId, questionData);
+      const created = await addQuestion(quiz.id, questionData);
       setQuestions((prev) => [...prev, created]);
       setFeedback('Question added successfully.');
     } catch (err) {
@@ -131,11 +159,32 @@ export const QuizManagementPage = () => {
       <AdminNavbar />
 
       <main className="admin-main-content">
-        {/* Navigation Breadcrumb */}
-        <div className="breadcrumb-bar">
+        {/* Navigation Breadcrumb & Quiz Selector */}
+        <div className="breadcrumb-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <Link to="/admin" className="breadcrumb-link">
-            &larr; Back to Quizzes
+            &larr; Back to Dashboard
           </Link>
+
+          {allQuizzes.length > 1 && quiz && (
+            <div className="quiz-selector-wrap" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="select-quiz-manage" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                Select Quiz:
+              </label>
+              <select
+                id="select-quiz-manage"
+                className="form-control select-control"
+                style={{ minWidth: '220px', padding: '6px 10px', fontSize: '0.875rem' }}
+                value={quiz.id}
+                onChange={(e) => handleSelectQuiz(e.target.value)}
+              >
+                {allQuizzes.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.title} ({q.active ? 'Active' : 'Inactive'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -169,16 +218,28 @@ export const QuizManagementPage = () => {
             <div className="spinner"></div>
             <p>Loading quiz details...</p>
           </div>
-        ) : !quiz ? (
+        ) : allQuizzes.length === 0 ? (
           <div className="empty-state-card">
-            <h4>Quiz Not Found</h4>
-            <p>The requested quiz does not exist or was deleted.</p>
+            <h4>No Quizzes Created Yet</h4>
+            <p>You have not created any quizzes yet. Please create your first quiz from the dashboard.</p>
             <button
               type="button"
               className="btn btn-primary"
               onClick={() => navigate('/admin')}
             >
-              Return to Dashboard
+              + Create Quiz on Dashboard
+            </button>
+          </div>
+        ) : !quiz ? (
+          <div className="empty-state-card">
+            <h4>Quiz Not Found</h4>
+            <p>{error || 'The requested quiz does not exist or was deleted.'}</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate('/admin/quizzes')}
+            >
+              View Available Quizzes
             </button>
           </div>
         ) : (
@@ -294,6 +355,9 @@ export const QuizManagementPage = () => {
                     quiz={quiz}
                     onSaved={(updated) => {
                       setQuiz(updated);
+                      setAllQuizzes((prev) =>
+                        prev.map((q) => (q.id === updated.id ? updated : q))
+                      );
                       setFeedback('Quiz configuration updated successfully!');
                     }}
                   />

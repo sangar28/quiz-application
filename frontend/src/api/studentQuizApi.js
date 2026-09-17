@@ -34,7 +34,17 @@ export const formatApiError = (error, defaultMsg = 'An unexpected error occurred
 // Fetch active quizzes for students
 export const getActiveQuizzes = async () => {
   const response = await apiClient.get('/api/quizzes');
-  return response.data;
+  const data = response?.data;
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  if (data && Array.isArray(data.quizzes)) {
+    return data.quizzes;
+  }
+  return [];
 };
 
 // Start or resume a quiz attempt
