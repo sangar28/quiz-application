@@ -47,89 +47,170 @@ export const StudentQuizPage = () => {
   const answersRef = useRef(answers);
   answersRef.current = answers;
 
-  const attemptIdRef = useRef(null);
-  const quizRef = useRef(null);
+  // Initialize and continuously sync attemptIdRef and quizRef
+  const attemptIdRef = useRef(searchParams.get('attemptId') || null);
+  if (attempt?.attemptId) {
+    attemptIdRef.current = attempt.attemptId;
+  }
+  const currentUrlAttemptId = searchParams.get('attemptId');
+  if (currentUrlAttemptId && !attemptIdRef.current) {
+    attemptIdRef.current = currentUrlAttemptId;
+  }
+
+  const quizRef = useRef(quiz);
   quizRef.current = quiz;
 
   // Submit quiz function - single source of truth for submission
-  const performSubmit = useCallback(async (reason = null) => {
-    if (hasSubmittedRef.current || isSubmittingRef.current) return;
-    const currentAttemptId = attemptIdRef.current;
-    if (!currentAttemptId) return;
-
-    hasSubmittedRef.current = true;
-    isSubmittingRef.current = true;
-    setIsSubmitting(true);
-    setShowSubmitModal(false);
-
-    if (reason) {
-      setSubmissionMessage(reason);
-    }
-
-    // Exit fullscreen if currently active
-    if (document.fullscreenElement) {
-      try {
-        await document.exitFullscreen();
-      } catch (ignored) {}
-    }
-
-    // Format answers map
-    const formattedAnswers = {};
-    Object.entries(answersRef.current).forEach(([qId, val]) => {
-      formattedAnswers[String(qId)] = String(val);
-    });
-
-    try {
-      await submitQuiz(currentAttemptId, formattedAnswers);
-
-      // Navigate according to quiz.immediateResult setting
-      if (quizRef.current?.immediateResult) {
-        navigate(`/student/result/${currentAttemptId}`, { replace: true });
-      } else {
-        navigate('/student', { replace: true });
+  const performSubmit = useCallback(
+    async (reason = null) => {
+      // Step 3 & 9: Guard against multiple concurrent submission calls
+      if (hasSubmittedRef.current || isSubmittingRef.current) {
+        console.log('[QUIZ] Submission blocked by guard', {
+          hasSubmitted: hasSubmittedRef.current,
+          isSubmitting: isSubmittingRef.current,
+        });
+        return;
       }
-    } catch (err) {
-      const errMsg = err.response?.data?.message || (typeof err.response?.data === 'string' ? err.response?.data : '');
-      if (errMsg.toLowerCase().includes('already been submitted')) {
-        if (quizRef.current?.immediateResult) {
+
+      const currentAttemptId =
+        attemptIdRef.current ||
+        attempt?.attemptId ||
+        searchParams.get('attemptId') ||
+        new URLSearchParams(window.location.search).get('attemptId');
+
+      if (!currentAttemptId) {
+        console.warn('[QUIZ] Submission blocked: attemptId is unavailable');
+        return;
+      }
+
+      console.log('[QUIZ] Calling performSubmit', {
+        attemptId: currentAttemptId,
+        reason,
+      });
+
+      // Step 3: Lock submission immediately BEFORE network and fullscreen exit
+      hasSubmittedRef.current = true;
+      isSubmittingRef.current = true;
+      setIsSubmitting(true);
+      setShowSubmitModal(false);
+
+      if (reason) {
+        setSubmissionMessage(reason);
+      }
+
+      console.log('[QUIZ] performSubmit started', {
+        attemptId: currentAttemptId,
+      });
+
+      // Format answers map safely
+      const currentAnswers = answersRef.current || {};
+      const formattedAnswers = {};
+      Object.entries(currentAnswers).forEach(([qId, val]) => {
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+          formattedAnswers[String(qId)] = String(val).trim().toUpperCase();
+        }
+      });
+
+      try {
+        console.log('[QUIZ] Sending submit request', {
+          attemptId: currentAttemptId,
+          answersCount: Object.keys(formattedAnswers).length,
+        });
+
+        // Step 5 & 6: Submit answers to backend FIRST
+        await submitQuiz(currentAttemptId, formattedAnswers);
+        console.log('[QUIZ] Submit successful');
+
+        // Step 5 & 9: Exit fullscreen AFTER submission succeeds
+        if (document.fullscreenElement) {
+          try {
+            await document.exitFullscreen();
+          } catch (fsErr) {
+            console.warn('[QUIZ] Fullscreen exit after submit ignored:', fsErr);
+          }
+        }
+
+        console.log('[QUIZ] Navigating after submission');
+        const immediate = quizRef.current?.immediateResult ?? quiz?.immediateResult ?? true;
+        if (immediate) {
           navigate(`/student/result/${currentAttemptId}`, { replace: true });
         } else {
           navigate('/student', { replace: true });
         }
-        return;
-      }
+      } catch (err) {
+        console.error('[QUIZ] Submit failed', err);
+        const errMsg =
+          err.response?.data?.message ||
+          (typeof err.response?.data === 'string' ? err.response?.data : '');
 
-      hasSubmittedRef.current = false;
-      isSubmittingRef.current = false;
-      setIsSubmitting(false);
-      setSubmissionMessage(null);
-      setError(formatApiError(err, 'Failed to submit quiz. Please try again.'));
-    }
-  }, [navigate]);
+        // If backend reports already submitted, cleanly proceed to result / dashboard
+        if (errMsg.toLowerCase().includes('already been submitted')) {
+          console.log('[QUIZ] Attempt was already submitted on server, navigating to result');
+          if (document.fullscreenElement) {
+            try {
+              await document.exitFullscreen();
+            } catch (ignored) {}
+          }
+          const immediate = quizRef.current?.immediateResult ?? quiz?.immediateResult ?? true;
+          if (immediate) {
+            navigate(`/student/result/${currentAttemptId}`, { replace: true });
+          } else {
+            navigate('/student', { replace: true });
+          }
+          return;
+        }
+
+        // On real failure, reset guard and show error
+        hasSubmittedRef.current = false;
+        isSubmittingRef.current = false;
+        setIsSubmitting(false);
+        setSubmissionMessage(null);
+        setError(formatApiError(err, 'Failed to submit quiz. Please try again.'));
+      }
+    },
+    [attempt, navigate, quiz, searchParams]
+  );
+
+  // Stable ref for performSubmit so callbacks/listeners never close over stale functions
+  const performSubmitRef = useRef(performSubmit);
+  performSubmitRef.current = performSubmit;
 
   // Anti-cheating violation handler
-  const registerViolation = useCallback((violationTypeMessage) => {
-    if (hasSubmittedRef.current || isSubmittingRef.current) return;
-    if (!quizRef.current?.detectTabSwitch) return;
+  const registerViolation = useCallback(
+    (violationTypeMessage) => {
+      if (hasSubmittedRef.current || isSubmittingRef.current) return;
+      if (!quizRef.current?.detectTabSwitch) return;
 
-    const threshold = quizRef.current.violationThreshold || 3;
-    const nextCount = violationCountRef.current + 1;
-    violationCountRef.current = Math.min(nextCount, threshold);
-    setViolationCount(violationCountRef.current);
+      const threshold = quizRef.current.violationThreshold || 3;
+      const nextCount = violationCountRef.current + 1;
+      violationCountRef.current = Math.min(nextCount, threshold);
+      setViolationCount(violationCountRef.current);
 
-    if (nextCount >= threshold) {
-      setViolationWarning(
-        `Violation limit reached (${threshold} of ${threshold}). Automatically submitting exam...`
-      );
-      if (quizRef.current.autoSubmitOnViolation) {
-        performSubmit('Violation threshold exceeded. Auto-submitting quiz...');
+      if (nextCount >= threshold) {
+        console.log('[QUIZ] Violation threshold reached', {
+          count: nextCount,
+          threshold,
+          autoSubmit: quizRef.current?.autoSubmitOnViolation,
+        });
+
+        if (quizRef.current?.autoSubmitOnViolation) {
+          setViolationWarning(
+            `Violation limit reached (${threshold} of ${threshold}). Automatically submitting exam...`
+          );
+          performSubmitRef.current('Violation threshold exceeded. Auto-submitting quiz...');
+        } else {
+          setViolationWarning(
+            `Violation limit reached (${threshold} of ${threshold}). You have exceeded the permitted violation limit.`
+          );
+        }
+      } else {
+        setViolationWarning(
+          `${violationTypeMessage} (Violation ${nextCount} of ${threshold})`
+        );
       }
-    } else {
-      setViolationWarning(
-        `${violationTypeMessage} (Violation ${nextCount} of ${threshold})`
-      );
-    }
-  }, [performSubmit]);
+    },
+    []
+  );
 
   // Fullscreen gate enter handler
   const handleEnterFullscreen = async () => {
@@ -162,7 +243,9 @@ export const StudentQuizPage = () => {
           if (quizRef.current?.detectTabSwitch) {
             registerViolation('Warning: Exiting fullscreen mode is not permitted.');
           }
-          setShowFullscreenGate(true);
+          if (!hasSubmittedRef.current && !isSubmittingRef.current) {
+            setShowFullscreenGate(true);
+          }
         }
       }
     };
@@ -233,13 +316,15 @@ export const StudentQuizPage = () => {
           throw new Error('Could not establish an active quiz attempt.');
         }
 
+        const resolvedAttemptId = attemptData.attemptId || attemptData.id || paramAttemptId;
+
         if (isMounted) {
           setAttempt(attemptData);
-          attemptIdRef.current = attemptData.attemptId;
+          attemptIdRef.current = resolvedAttemptId;
         }
 
         // 3. Fetch attempt questions
-        const questionList = await getAttemptQuestions(attemptData.attemptId);
+        const questionList = await getAttemptQuestions(resolvedAttemptId);
         if (!questionList || questionList.length === 0) {
           if (isMounted) {
             setError('No questions have been configured for this quiz.');
@@ -328,9 +413,9 @@ export const StudentQuizPage = () => {
   // Timer expiration callback - uses same central performSubmit
   const handleTimerExpire = useCallback(() => {
     if (!hasSubmittedRef.current && !isSubmittingRef.current) {
-      performSubmit('Your quiz time has expired. Submitting your answers...');
+      performSubmitRef.current('Your quiz time has expired. Submitting your answers...');
     }
-  }, [performSubmit]);
+  }, []);
 
   // Navigation handlers
   const handlePrevious = () => {
@@ -392,7 +477,7 @@ export const StudentQuizPage = () => {
       }`}
     >
       {/* Fullscreen Gate Overlay */}
-      {showFullscreenGate && !loading && !error && (
+      {showFullscreenGate && !loading && !error && !isSubmitting && !hasSubmittedRef.current && (
         <div className="fullscreen-gate-overlay">
           <div className="fullscreen-gate-modal">
             <div className="gate-icon">⛶</div>
