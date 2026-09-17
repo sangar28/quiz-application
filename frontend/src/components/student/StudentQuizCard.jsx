@@ -4,6 +4,17 @@ import { useNavigate } from 'react-router-dom';
 export const StudentQuizCard = ({ quiz }) => {
   const navigate = useNavigate();
 
+  const handleResumeQuiz = async () => {
+    try {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (fsErr) {
+      console.warn('Fullscreen request denied or unsupported:', fsErr);
+    }
+    navigate(`/student/quiz/${quiz.id}?attemptId=${quiz.activeAttemptId}`);
+  };
+
   const renderStatus = () => {
     if (quiz.activeAttemptId) {
       return (
@@ -15,7 +26,7 @@ export const StudentQuizCard = ({ quiz }) => {
             <button
               type="button"
               className="btn btn-warning btn-block"
-              onClick={() => navigate(`/student/quiz/${quiz.id}?attemptId=${quiz.activeAttemptId}`)}
+              onClick={handleResumeQuiz}
             >
               Resume Quiz &rarr;
             </button>

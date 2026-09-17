@@ -5,8 +5,10 @@ import { QuizQuestion } from '../../components/student/QuizQuestion';
 import { QuizNavigation } from '../../components/student/QuizNavigation';
 import { ConfirmModal } from '../../components/admin/ConfirmModal';
 import {
+  getQuizById,
   getActiveQuizzes,
   startQuiz,
+  getAttempt,
   getAttemptQuestions,
   submitQuiz,
   formatApiError,
@@ -29,24 +31,34 @@ export const StudentQuizPage = () => {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submissionMessage, setSubmissionMessage] = useState(null);
 
+  // Fullscreen state
+  const [showFullscreenGate, setShowFullscreenGate] = useState(!document.fullscreenElement);
+  const [fullscreenError, setFullscreenError] = useState(null);
+
   // Anti-cheating state
   const [violationCount, setViolationCount] = useState(0);
   const [violationWarning, setViolationWarning] = useState(null);
 
-  // Keep a ref to prevent multiple submissions
+  // Refs for stable callbacks, event handlers, and preventing duplicate submissions
   const hasSubmittedRef = useRef(false);
+  const isSubmittingRef = useRef(false);
+  const violationCountRef = useRef(0);
+  const hasEnteredFullscreenRef = useRef(!!document.fullscreenElement);
   const answersRef = useRef(answers);
   answersRef.current = answers;
 
   const attemptIdRef = useRef(null);
+  const quizRef = useRef(null);
+  quizRef.current = quiz;
 
-  // Submit quiz function
+  // Submit quiz function - single source of truth for submission
   const performSubmit = useCallback(async (reason = null) => {
-    if (hasSubmittedRef.current) return;
+    if (hasSubmittedRef.current || isSubmittingRef.current) return;
     const currentAttemptId = attemptIdRef.current;
     if (!currentAttemptId) return;
 
     hasSubmittedRef.current = true;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     setShowSubmitModal(false);
 
@@ -54,7 +66,14 @@ export const StudentQuizPage = () => {
       setSubmissionMessage(reason);
     }
 
-    // Convert keys to string IDs
+    // Exit fullscreen if currently active
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch (ignored) {}
+    }
+
+    // Format answers map
     const formattedAnswers = {};
     Object.entries(answersRef.current).forEach(([qId, val]) => {
       formattedAnswers[String(qId)] = String(val);
@@ -62,111 +81,225 @@ export const StudentQuizPage = () => {
 
     try {
       await submitQuiz(currentAttemptId, formattedAnswers);
-      navigate(`/student/result/${currentAttemptId}`, { replace: true });
+
+      // Navigate according to quiz.immediateResult setting
+      if (quizRef.current?.immediateResult) {
+        navigate(`/student/result/${currentAttemptId}`, { replace: true });
+      } else {
+        navigate('/student', { replace: true });
+      }
     } catch (err) {
+      const errMsg = err.response?.data?.message || (typeof err.response?.data === 'string' ? err.response?.data : '');
+      if (errMsg.toLowerCase().includes('already been submitted')) {
+        if (quizRef.current?.immediateResult) {
+          navigate(`/student/result/${currentAttemptId}`, { replace: true });
+        } else {
+          navigate('/student', { replace: true });
+        }
+        return;
+      }
+
       hasSubmittedRef.current = false;
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
       setSubmissionMessage(null);
       setError(formatApiError(err, 'Failed to submit quiz. Please try again.'));
     }
   }, [navigate]);
 
-  // Initial attempt and questions loader
+  // Anti-cheating violation handler
+  const registerViolation = useCallback((violationTypeMessage) => {
+    if (hasSubmittedRef.current || isSubmittingRef.current) return;
+    if (!quizRef.current?.detectTabSwitch) return;
+
+    const threshold = quizRef.current.violationThreshold || 3;
+    const nextCount = violationCountRef.current + 1;
+    violationCountRef.current = Math.min(nextCount, threshold);
+    setViolationCount(violationCountRef.current);
+
+    if (nextCount >= threshold) {
+      setViolationWarning(
+        `Violation limit reached (${threshold} of ${threshold}). Automatically submitting exam...`
+      );
+      if (quizRef.current.autoSubmitOnViolation) {
+        performSubmit('Violation threshold exceeded. Auto-submitting quiz...');
+      }
+    } else {
+      setViolationWarning(
+        `${violationTypeMessage} (Violation ${nextCount} of ${threshold})`
+      );
+    }
+  }, [performSubmit]);
+
+  // Fullscreen gate enter handler
+  const handleEnterFullscreen = async () => {
+    setFullscreenError(null);
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+        setShowFullscreenGate(false);
+        hasEnteredFullscreenRef.current = true;
+      } else {
+        setShowFullscreenGate(false);
+      }
+    } catch (err) {
+      console.warn('Fullscreen request failed:', err);
+      setFullscreenError('Fullscreen mode is required to take this quiz.');
+    }
+  };
+
+  // Fullscreen change listener
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      const inFullscreen = !!document.fullscreenElement;
+
+      if (inFullscreen) {
+        hasEnteredFullscreenRef.current = true;
+        setShowFullscreenGate(false);
+      } else {
+        // User exited fullscreen during an active exam session
+        if (hasEnteredFullscreenRef.current && !hasSubmittedRef.current && !isSubmittingRef.current) {
+          if (quizRef.current?.detectTabSwitch) {
+            registerViolation('Warning: Exiting fullscreen mode is not permitted.');
+          }
+          setShowFullscreenGate(true);
+        }
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [registerViolation]);
+
+  // Initial attempt and questions loader - AttemptId is the source of truth
+  useEffect(() => {
+    let isMounted = true;
+
     const initializeQuiz = async () => {
       setLoading(true);
       setError(null);
       try {
         // 1. Fetch active quiz settings
-        const allQuizzes = await getActiveQuizzes();
-        const currentQuiz = allQuizzes.find((q) => String(q.id) === String(quizId));
+        let currentQuiz = null;
+        try {
+          currentQuiz = await getQuizById(quizId);
+        } catch {
+          const allQuizzes = await getActiveQuizzes();
+          currentQuiz = allQuizzes.find((q) => String(q.id) === String(quizId));
+        }
+
         if (!currentQuiz) {
-          setError('Quiz not found or is no longer active.');
-          setLoading(false);
+          if (isMounted) {
+            setError('Quiz not found or is no longer active.');
+            setLoading(false);
+          }
           return;
         }
-        setQuiz(currentQuiz);
 
-        // 2. Obtain attempt (either from URL or resume/start from backend)
+        if (isMounted) {
+          setQuiz(currentQuiz);
+          quizRef.current = currentQuiz;
+        }
+
+        // 2. Obtain attempt (either validate existing attempt from URL or start/resume from backend)
         let attemptData = null;
         const paramAttemptId = searchParams.get('attemptId');
 
-        // startQuiz resumes an unexpired attempt or creates a new one
-        attemptData = await startQuiz(quizId);
-        setAttempt(attemptData);
-        attemptIdRef.current = attemptData.attemptId;
+        if (paramAttemptId) {
+          // AttemptId in URL takes priority as source of truth
+          try {
+            attemptData = await getAttempt(paramAttemptId);
+          } catch (attemptErr) {
+            const msg = attemptErr.response?.data?.message || '';
+            if (msg.toLowerCase().includes('already been submitted')) {
+              if (currentQuiz.immediateResult) {
+                navigate(`/student/result/${paramAttemptId}`, { replace: true });
+                return;
+              }
+            }
+            throw attemptErr;
+          }
+        } else {
+          // No attemptId in URL -> startQuiz resumes unexpired attempt or creates a new one
+          attemptData = await startQuiz(quizId);
+          if (isMounted) {
+            setSearchParams({ attemptId: String(attemptData.attemptId) }, { replace: true });
+          }
+        }
 
-        // Keep URL updated with attemptId for seamless page reloads
-        if (paramAttemptId !== String(attemptData.attemptId)) {
-          setSearchParams({ attemptId: String(attemptData.attemptId) }, { replace: true });
+        if (!attemptData) {
+          throw new Error('Could not establish an active quiz attempt.');
+        }
+
+        if (isMounted) {
+          setAttempt(attemptData);
+          attemptIdRef.current = attemptData.attemptId;
         }
 
         // 3. Fetch attempt questions
         const questionList = await getAttemptQuestions(attemptData.attemptId);
         if (!questionList || questionList.length === 0) {
-          setError('No questions have been configured for this quiz.');
-          setLoading(false);
+          if (isMounted) {
+            setError('No questions have been configured for this quiz.');
+            setLoading(false);
+          }
           return;
         }
-        setQuestions(questionList);
+
+        if (isMounted) {
+          setQuestions(questionList);
+        }
       } catch (err) {
-        setError(formatApiError(err, 'Failed to load quiz attempt.'));
+        if (isMounted) {
+          setError(formatApiError(err, 'Failed to load quiz attempt.'));
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     initializeQuiz();
-  }, [quizId, searchParams, setSearchParams]);
 
-  // Auto-submit when violation limit is reached
+    return () => {
+      isMounted = false;
+    };
+  }, [quizId]); // Note: Do NOT include searchParams here to prevent circular re-renders
+
+  // Anti-cheating event listeners (Copy, Paste, Right-Click, VisibilityChange)
   useEffect(() => {
-    if (!quiz || !quiz.detectTabSwitch || !quiz.autoSubmitOnViolation) return;
-    const threshold = quiz.violationThreshold || 3;
-
-    if (violationCount >= threshold && !hasSubmittedRef.current) {
-      performSubmit('Violation threshold exceeded. Auto-submitting quiz...');
-    }
-  }, [violationCount, quiz, performSubmit]);
-
-  // Anti-cheating event listeners
-  useEffect(() => {
-    if (!quiz || isSubmitting || hasSubmittedRef.current) return;
+    if (!quiz || isSubmitting) return;
 
     // A. Copy prevention
     const handleCopy = (e) => {
-      if (!quiz.allowCopy) {
+      if (!quizRef.current?.allowCopy) {
         e.preventDefault();
       }
     };
 
     // B. Paste prevention
     const handlePaste = (e) => {
-      if (!quiz.allowPaste) {
+      if (!quizRef.current?.allowPaste) {
         e.preventDefault();
       }
     };
 
     // C. Right-click context menu prevention
     const handleContextMenu = (e) => {
-      if (!quiz.allowRightClick) {
+      if (!quizRef.current?.allowRightClick) {
         e.preventDefault();
       }
     };
 
-    // D. Tab-switch detection
+    // D. Tab-switch detection (fires when tab becomes hidden)
     const handleVisibilityChange = () => {
-      if (!quiz.detectTabSwitch) return;
+      if (!quizRef.current?.detectTabSwitch) return;
 
       if (document.visibilityState === 'hidden') {
-        setViolationCount((prev) => {
-          const next = prev + 1;
-          const max = quiz.violationThreshold || 3;
-          setViolationWarning(
-            `Warning: Leaving the quiz window is not permitted. (Violation ${next} of ${max})`
-          );
-          return next;
-        });
+        registerViolation('Warning: Leaving the quiz window is not permitted.');
       }
     };
 
@@ -181,7 +314,7 @@ export const StudentQuizPage = () => {
       window.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [quiz, isSubmitting]);
+  }, [quiz, isSubmitting, registerViolation]);
 
   // Answer selection handler
   const handleSelectAnswer = (qId, optionKey) => {
@@ -192,9 +325,9 @@ export const StudentQuizPage = () => {
     }));
   };
 
-  // Timer expiration callback
+  // Timer expiration callback - uses same central performSubmit
   const handleTimerExpire = useCallback(() => {
-    if (!hasSubmittedRef.current) {
+    if (!hasSubmittedRef.current && !isSubmittingRef.current) {
       performSubmit('Your quiz time has expired. Submitting your answers...');
     }
   }, [performSubmit]);
@@ -258,6 +391,31 @@ export const StudentQuizPage = () => {
         !quiz?.allowCopy ? 'no-copy-zone' : ''
       }`}
     >
+      {/* Fullscreen Gate Overlay */}
+      {showFullscreenGate && !loading && !error && (
+        <div className="fullscreen-gate-overlay">
+          <div className="fullscreen-gate-modal">
+            <div className="gate-icon">⛶</div>
+            <h3>Fullscreen Mode Required</h3>
+            <p>
+              Fullscreen mode is required to take this quiz. Please enter fullscreen to continue your assessment.
+            </p>
+            {fullscreenError && (
+              <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+                <span>{fullscreenError}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              onClick={handleEnterFullscreen}
+            >
+              Enter Fullscreen
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Examination Status Bar */}
       <header className="exam-top-bar">
         <div className="exam-top-bar-inner">

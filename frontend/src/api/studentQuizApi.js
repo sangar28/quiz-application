@@ -47,9 +47,21 @@ export const getActiveQuizzes = async () => {
   return [];
 };
 
+// Fetch single quiz details for student
+export const getQuizById = async (quizId) => {
+  const response = await apiClient.get(`/api/quizzes/${quizId}`);
+  return response.data;
+};
+
 // Start or resume a quiz attempt
 export const startQuiz = async (quizId) => {
   const response = await apiClient.post(`/api/quizzes/${quizId}/start`);
+  return response.data;
+};
+
+// Get single attempt details (validation, startedAt, expiresAt)
+export const getAttempt = async (attemptId) => {
+  const response = await apiClient.get(`/api/quizzes/attempts/${attemptId}`);
   return response.data;
 };
 

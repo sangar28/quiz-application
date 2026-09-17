@@ -11,6 +11,8 @@ public interface QuizAttemptService {
 
     QuizAttemptResponseDTO startQuiz(Long quizId);
 
+    QuizAttemptResponseDTO getAttempt(Long attemptId);
+
     List<QuestionResponseDTO> getAttemptQuestions(Long attemptId);
 
     StudentResultResponseDTO submitQuiz(Long attemptId, SubmitQuizRequestDTO request);

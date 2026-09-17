@@ -107,6 +107,38 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
 
     @Override
     @Transactional(readOnly = true)
+    public QuizAttemptResponseDTO getAttempt(Long attemptId) {
+        QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found with id: " + attemptId));
+
+        User user = securityUtils.getCurrentUser();
+        if (!attempt.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to quiz attempt");
+        }
+
+        if (attempt.isSubmitted()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz attempt has already been submitted");
+        }
+
+        if (LocalDateTime.now().isAfter(attempt.getExpiresAt())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz attempt has expired");
+        }
+
+        Quiz quiz = attempt.getQuiz();
+        if (quiz == null || !quiz.isActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz is not active");
+        }
+
+        return new QuizAttemptResponseDTO(
+                attempt.getId(),
+                quiz.getId(),
+                attempt.getStartedAt(),
+                attempt.getExpiresAt()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<QuestionResponseDTO> getAttemptQuestions(Long attemptId) {
         QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz attempt not found with id: " + attemptId));

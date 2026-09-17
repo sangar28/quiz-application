@@ -30,6 +30,11 @@ public class QuizController {
         return ResponseEntity.ok(quizService.getActiveQuizzes());
     }
 
+    @GetMapping("/{quizId}")
+    public ResponseEntity<QuizResponseDTO> getQuizById(@PathVariable Long quizId) {
+        return ResponseEntity.ok(quizService.getQuizById(quizId));
+    }
+
     @GetMapping("/{quizId}/questions")
     public ResponseEntity<List<QuestionResponseDTO>> getQuizQuestions(@PathVariable Long quizId) {
         return ResponseEntity.ok(quizService.getQuizQuestions(quizId));
@@ -38,6 +43,11 @@ public class QuizController {
     @PostMapping("/{quizId}/start")
     public ResponseEntity<QuizAttemptResponseDTO> startQuiz(@PathVariable Long quizId) {
         return ResponseEntity.ok(quizAttemptService.startQuiz(quizId));
+    }
+
+    @GetMapping("/attempts/{attemptId}")
+    public ResponseEntity<QuizAttemptResponseDTO> getAttempt(@PathVariable Long attemptId) {
+        return ResponseEntity.ok(quizAttemptService.getAttempt(attemptId));
     }
 
     @GetMapping("/attempts/{attemptId}/questions")

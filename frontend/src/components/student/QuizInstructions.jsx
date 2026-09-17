@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { StudentNavbar } from './StudentNavbar';
-import { getActiveQuizzes, startQuiz, formatApiError } from '../../api/studentQuizApi';
+import { getActiveQuizzes, getQuizById, startQuiz, formatApiError } from '../../api/studentQuizApi';
 
 export const QuizInstructions = () => {
   const { quizId } = useParams();
@@ -17,13 +17,19 @@ export const QuizInstructions = () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await getActiveQuizzes();
-        const quizzes = Array.isArray(data)
-          ? data
-          : data && Array.isArray(data.data)
-          ? data.data
-          : [];
-        const found = quizzes.find((q) => String(q.id) === String(quizId));
+        let found = null;
+        try {
+          found = await getQuizById(quizId);
+        } catch {
+          const data = await getActiveQuizzes();
+          const quizzes = Array.isArray(data)
+            ? data
+            : data && Array.isArray(data.data)
+            ? data.data
+            : [];
+          found = quizzes.find((q) => String(q.id) === String(quizId));
+        }
+
         if (!found) {
           setError('The requested quiz was not found or is currently inactive.');
           return;
@@ -44,7 +50,17 @@ export const QuizInstructions = () => {
     setError(null);
     try {
       const attempt = await startQuiz(quizId);
-      // Navigate to the active quiz taking view with the attemptId in query params
+
+      // Request fullscreen directly from the user click gesture
+      try {
+        if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (fsErr) {
+        console.warn('Fullscreen request denied or unsupported:', fsErr);
+      }
+
+      // Navigate to the active quiz taking view with the newly returned attemptId
       navigate(`/student/quiz/${quizId}?attemptId=${attempt.attemptId}`);
     } catch (err) {
       setError(formatApiError(err, 'Failed to start quiz attempt.'));

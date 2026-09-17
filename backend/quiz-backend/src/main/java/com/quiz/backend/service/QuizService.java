@@ -9,5 +9,7 @@ public interface QuizService {
 
     List<QuizResponseDTO> getActiveQuizzes();
 
+    QuizResponseDTO getQuizById(Long quizId);
+
     List<QuestionResponseDTO> getQuizQuestions(Long quizId);
 }

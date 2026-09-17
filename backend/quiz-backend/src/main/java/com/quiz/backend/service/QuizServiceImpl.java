@@ -89,7 +89,7 @@ public class QuizServiceImpl implements QuizService {
                                 .findTopByUserIdAndQuizIdOrderBySubmittedAtDesc(user.getId(), quiz.getId());
                         if (latestResultOpt.isPresent()) {
                             Result latestResult = latestResultOpt.get();
-                            dto.setAlreadySubmitted(true);
+                            dto.setAlreadySubmitted(dto.getActiveAttemptId() == null);
                             dto.setRetakeApproved(latestResult.isRetakeApproved());
                         }
                     }
@@ -97,6 +97,59 @@ public class QuizServiceImpl implements QuizService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public QuizResponseDTO getQuizById(Long quizId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found with id: " + quizId));
+
+        if (!quiz.isActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz is not active");
+        }
+
+        QuizResponseDTO dto = new QuizResponseDTO(
+                quiz.getId(),
+                quiz.getTitle(),
+                quiz.getDescription(),
+                quiz.getDurationMinutes(),
+                quiz.isShowScore(),
+                quiz.isShowCorrectAnswers(),
+                quiz.isAllowCopy(),
+                quiz.isAllowPaste(),
+                quiz.isAllowRightClick(),
+                quiz.isDetectTabSwitch(),
+                quiz.isAutoSubmitOnViolation(),
+                quiz.getViolationThreshold(),
+                quiz.isAllowPreviousQuestion(),
+                quiz.isRandomQuestions(),
+                quiz.isRandomOptions(),
+                quiz.isImmediateResult()
+        );
+
+        User currentUser = null;
+        try {
+            currentUser = securityUtils.getCurrentUser();
+        } catch (Exception ignored) {
+        }
+
+        if (currentUser != null) {
+            Optional<QuizAttempt> unfinishedAttempt = quizAttemptRepository
+                    .findFirstByUserIdAndQuizIdAndSubmittedFalseOrderByStartedAtDesc(currentUser.getId(), quiz.getId());
+            if (unfinishedAttempt.isPresent() && LocalDateTime.now().isBefore(unfinishedAttempt.get().getExpiresAt())) {
+                dto.setActiveAttemptId(unfinishedAttempt.get().getId());
+            }
+
+            Optional<Result> latestResultOpt = resultRepository
+                    .findTopByUserIdAndQuizIdOrderBySubmittedAtDesc(currentUser.getId(), quiz.getId());
+            if (latestResultOpt.isPresent()) {
+                Result latestResult = latestResultOpt.get();
+                dto.setAlreadySubmitted(dto.getActiveAttemptId() == null);
+                dto.setRetakeApproved(latestResult.isRetakeApproved());
+            }
+        }
+
+        return dto;
     }
 
     @Override

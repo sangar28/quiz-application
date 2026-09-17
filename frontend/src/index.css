@@ -2397,5 +2397,64 @@ body {
   white-space: nowrap;
 }
 
+/* Fullscreen Gate Overlay */
+.fullscreen-gate-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.fullscreen-gate-modal {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 480px;
+  width: 100%;
+  padding: 40px 32px;
+  text-align: center;
+  animation: fadeInModal 0.2s ease-out;
+}
+
+.gate-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  color: var(--primary, #2563eb);
+}
+
+.fullscreen-gate-modal h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main, #0f172a);
+  margin-bottom: 12px;
+}
+
+.fullscreen-gate-modal p {
+  color: var(--text-muted, #64748b);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 
 
