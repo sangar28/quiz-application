@@ -12,6 +12,7 @@ public class AdminResultResponseDTO {
     private Integer totalQuestions;
     private LocalDateTime submittedAt;
     private boolean retakeApproved;
+    private Long attemptId;
 
     public AdminResultResponseDTO() {
     }
@@ -27,6 +28,7 @@ public class AdminResultResponseDTO {
         this.totalQuestions = totalQuestions;
         this.submittedAt = submittedAt;
         this.retakeApproved = false;
+        this.attemptId = null;
     }
 
     public AdminResultResponseDTO(Long resultId, String studentName, String studentEmail,
@@ -40,6 +42,21 @@ public class AdminResultResponseDTO {
         this.totalQuestions = totalQuestions;
         this.submittedAt = submittedAt;
         this.retakeApproved = retakeApproved;
+        this.attemptId = null;
+    }
+
+    public AdminResultResponseDTO(Long resultId, String studentName, String studentEmail,
+                                  String quizTitle, Integer score, Integer totalQuestions,
+                                  LocalDateTime submittedAt, boolean retakeApproved, Long attemptId) {
+        this.resultId = resultId;
+        this.studentName = studentName;
+        this.studentEmail = studentEmail;
+        this.quizTitle = quizTitle;
+        this.score = score;
+        this.totalQuestions = totalQuestions;
+        this.submittedAt = submittedAt;
+        this.retakeApproved = retakeApproved;
+        this.attemptId = attemptId;
     }
 
     public Long getResultId() {
@@ -104,5 +121,13 @@ public class AdminResultResponseDTO {
 
     public void setRetakeApproved(boolean retakeApproved) {
         this.retakeApproved = retakeApproved;
+    }
+
+    public Long getAttemptId() {
+        return attemptId;
+    }
+
+    public void setAttemptId(Long attemptId) {
+        this.attemptId = attemptId;
     }
 }

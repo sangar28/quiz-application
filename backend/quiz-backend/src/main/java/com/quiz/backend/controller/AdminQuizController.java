@@ -65,8 +65,13 @@ public class AdminQuizController {
     }
 
     @GetMapping("/{quizId}/questions")
-    public ResponseEntity<List<AdminQuestionResponseDTO>> getQuizQuestions(@PathVariable Long quizId) {
-        return ResponseEntity.ok(quizAdminService.getQuizQuestions(quizId));
+    public ResponseEntity<PageResponseDTO<AdminQuestionResponseDTO>> getQuizQuestions(
+            @PathVariable Long quizId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        int pageNum = Math.max(0, page);
+        int pageSize = size > 0 ? size : 10;
+        return ResponseEntity.ok(quizAdminService.getQuizQuestionsPaged(quizId, org.springframework.data.domain.PageRequest.of(pageNum, pageSize)));
     }
 
     @DeleteMapping("/questions/{questionId}")

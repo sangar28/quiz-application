@@ -6,6 +6,10 @@ export const QuestionList = ({
   loading = false,
   onDeleteQuestion,
   onAddQuestion,
+  currentPage = 0,
+  totalPages = 1,
+  totalElements = 0,
+  onPageChange,
 }) => {
   const [questionToDelete, setQuestionToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -89,7 +93,7 @@ export const QuestionList = ({
       <div className="questions-header">
         <div>
           <h4 className="section-title">
-            Questions ({questions.length})
+            Questions ({totalElements > 0 ? totalElements : questions.length})
           </h4>
           <p className="section-desc">
             All questions currently loaded for this quiz.
@@ -232,11 +236,12 @@ export const QuestionList = ({
         <div className="question-list">
           {questions.map((q, idx) => {
             const correctOpt = q.correctOption?.toUpperCase();
+            const questionNumber = currentPage * 10 + idx + 1;
             return (
               <div key={q.id} className="question-item">
                 <div className="question-item-header">
                   <div className="question-number-title">
-                    <span className="question-badge">Q{idx + 1}</span>
+                    <span className="question-badge">Q{questionNumber}</span>
                     <span className="question-text">{q.questionText}</span>
                   </div>
                   <button
@@ -273,6 +278,39 @@ export const QuestionList = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalPages > 1 && onPageChange && (
+        <div className="pagination-container">
+          <button
+            type="button"
+            className="pagination-btn"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 0}
+          >
+            &larr; Previous
+          </button>
+          <div className="pagination-numbers">
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`pagination-num ${i === currentPage ? 'pagination-num-active' : ''}`}
+                onClick={() => onPageChange(i)}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="pagination-btn"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages - 1}
+          >
+            Next &rarr;
+          </button>
         </div>
       )}
 

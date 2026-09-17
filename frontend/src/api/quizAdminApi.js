@@ -50,8 +50,10 @@ export const deleteQuiz = async (quizId) => {
 };
 
 // Question Operations
-export const getQuizQuestions = async (quizId) => {
-  const response = await apiClient.get(`/api/admin/quizzes/${quizId}/questions`);
+export const getQuizQuestions = async (quizId, page = 0, size = 10) => {
+  const response = await apiClient.get(`/api/admin/quizzes/${quizId}/questions`, {
+    params: { page, size },
+  });
   return response.data;
 };
 

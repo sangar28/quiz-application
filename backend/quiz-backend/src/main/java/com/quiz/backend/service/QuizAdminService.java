@@ -1,6 +1,7 @@
 package com.quiz.backend.service;
 
 import com.quiz.backend.dto.*;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -17,6 +18,8 @@ public interface QuizAdminService {
     AdminQuestionResponseDTO addQuestion(Long quizId, CreateQuestionRequestDTO request);
 
     List<AdminQuestionResponseDTO> getQuizQuestions(Long quizId);
+
+    PageResponseDTO<AdminQuestionResponseDTO> getQuizQuestionsPaged(Long quizId, Pageable pageable);
 
     void deleteQuestion(Long questionId);
 }

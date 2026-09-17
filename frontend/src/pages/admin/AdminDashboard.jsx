@@ -35,7 +35,7 @@ export const AdminDashboard = () => {
         getAllResults().catch(() => []),
       ]);
       setQuizzes(quizzesData || []);
-      setTotalResults(Array.isArray(resultsData) ? resultsData.length : 0);
+      setTotalResults(resultsData?.totalElements ?? (Array.isArray(resultsData) ? resultsData.length : 0));
     } catch (err) {
       setError(formatApiError(err, 'Unable to load dashboard data.'));
     } finally {
@@ -99,6 +99,7 @@ export const AdminDashboard = () => {
       setQuizzes((prev) => prev.filter((q) => q.id !== quizToDelete.id));
       setSuccessMessage(`Quiz "${quizToDelete.title}" was successfully deleted.`);
       setQuizToDelete(null);
+      await fetchDashboardData();
     } catch (err) {
       setError(formatApiError(err, 'Failed to delete quiz.'));
     } finally {

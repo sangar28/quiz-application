@@ -1,7 +1,36 @@
 import apiClient from './apiClient';
 
-export const getAllResults = async () => {
-  const response = await apiClient.get('/api/admin/results');
+export const getAllResults = async (page = 0, size = 10) => {
+  const response = await apiClient.get('/api/admin/results', {
+    params: { page, size },
+  });
+  return response.data;
+};
+
+export const getAdminResults = async ({ quizId, search, page = 0, size = 10 } = {}) => {
+  const params = { page, size };
+  if (quizId && quizId !== 'all') {
+    params.quizId = quizId;
+  }
+  if (search && search.trim()) {
+    params.search = search.trim();
+  }
+  const response = await apiClient.get('/api/admin/results', { params });
+  return response.data;
+};
+
+export const exportResultsExcel = async ({ quizId, search } = {}) => {
+  const params = {};
+  if (quizId && quizId !== 'all') {
+    params.quizId = quizId;
+  }
+  if (search && search.trim()) {
+    params.search = search.trim();
+  }
+  const response = await apiClient.get('/api/admin/results/export', {
+    params,
+    responseType: 'blob',
+  });
   return response.data;
 };
 

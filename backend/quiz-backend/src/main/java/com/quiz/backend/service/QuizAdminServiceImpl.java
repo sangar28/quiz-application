@@ -4,7 +4,11 @@ import com.quiz.backend.dto.*;
 import com.quiz.backend.entity.Question;
 import com.quiz.backend.entity.Quiz;
 import com.quiz.backend.repository.QuestionRepository;
+import com.quiz.backend.repository.QuizAttemptRepository;
 import com.quiz.backend.repository.QuizRepository;
+import com.quiz.backend.repository.ResultRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,10 +23,17 @@ public class QuizAdminServiceImpl implements QuizAdminService {
 
     private final QuizRepository quizRepository;
     private final QuestionRepository questionRepository;
+    private final ResultRepository resultRepository;
+    private final QuizAttemptRepository quizAttemptRepository;
 
-    public QuizAdminServiceImpl(QuizRepository quizRepository, QuestionRepository questionRepository) {
+    public QuizAdminServiceImpl(QuizRepository quizRepository,
+                                QuestionRepository questionRepository,
+                                ResultRepository resultRepository,
+                                QuizAttemptRepository quizAttemptRepository) {
         this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
+        this.resultRepository = resultRepository;
+        this.quizAttemptRepository = quizAttemptRepository;
     }
 
     @Override
@@ -75,15 +86,25 @@ public class QuizAdminServiceImpl implements QuizAdminService {
 
     @Override
     public void deleteQuiz(Long quizId) {
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found with id: " + quizId));
-
-        List<Question> questions = questionRepository.findByQuizId(quizId);
-        if (!questions.isEmpty()) {
-            questionRepository.deleteAll(questions);
+        if (!quizRepository.existsById(quizId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found with id: " + quizId);
         }
 
-        quizRepository.delete(quiz);
+        try {
+            // 1. Delete Result records belonging to the quiz
+            resultRepository.deleteByQuizId(quizId);
+
+            // 2. Delete QuizAttempt records belonging to the quiz
+            quizAttemptRepository.deleteByQuizId(quizId);
+
+            // 3. Delete Question records belonging to the quiz
+            questionRepository.deleteByQuizId(quizId);
+
+            // 4. Delete the Quiz itself
+            quizRepository.deleteById(quizId);
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to safely delete quiz: " + ex.getMessage(), ex);
+        }
     }
 
     @Override
@@ -115,6 +136,18 @@ public class QuizAdminServiceImpl implements QuizAdminService {
                 .stream()
                 .map(this::mapToAdminQuestionResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<AdminQuestionResponseDTO> getQuizQuestionsPaged(Long quizId, Pageable pageable) {
+        if (!quizRepository.existsById(quizId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Quiz not found with id: " + quizId);
+        }
+
+        Page<Question> questionPage = questionRepository.findByQuizId(quizId, pageable);
+        Page<AdminQuestionResponseDTO> dtoPage = questionPage.map(this::mapToAdminQuestionResponseDTO);
+        return PageResponseDTO.from(dtoPage);
     }
 
     @Override

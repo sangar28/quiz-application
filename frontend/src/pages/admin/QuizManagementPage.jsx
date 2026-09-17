@@ -20,6 +20,9 @@ export const QuizManagementPage = () => {
   const [allQuizzes, setAllQuizzes] = useState([]);
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [questionPage, setQuestionPage] = useState(0);
+  const [totalQuestionPages, setTotalQuestionPages] = useState(1);
+  const [totalQuestionsCount, setTotalQuestionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('questions'); // 'questions' | 'upload' | 'settings'
@@ -28,7 +31,24 @@ export const QuizManagementPage = () => {
   const [feedback, setFeedback] = useState(null);
   const [togglingActive, setTogglingActive] = useState(false);
 
-  // Load quiz details and question list
+  // Load questions for specific page
+  const loadQuestions = useCallback(async (targetQuizId, pageToLoad = 0) => {
+    setQuestionsLoading(true);
+    try {
+      const pageData = await getQuizQuestions(targetQuizId, pageToLoad, 10);
+      const items = pageData?.content || [];
+      setQuestions(items);
+      setQuestionPage(pageData?.number ?? pageToLoad);
+      setTotalQuestionPages(pageData?.totalPages ?? 1);
+      setTotalQuestionsCount(pageData?.totalElements ?? items.length);
+    } catch (err) {
+      setError(formatApiError(err, 'Failed to load questions.'));
+    } finally {
+      setQuestionsLoading(false);
+    }
+  }, []);
+
+  // Load quiz details and initial question list
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -40,6 +60,8 @@ export const QuizManagementPage = () => {
       if (availableQuizzes.length === 0) {
         setQuiz(null);
         setQuestions([]);
+        setTotalQuestionsCount(0);
+        setTotalQuestionPages(1);
         return;
       }
 
@@ -50,6 +72,8 @@ export const QuizManagementPage = () => {
           setError(`Quiz with ID ${quizId} was not found.`);
           setQuiz(null);
           setQuestions([]);
+          setTotalQuestionsCount(0);
+          setTotalQuestionPages(1);
           return;
         }
       } else {
@@ -58,16 +82,13 @@ export const QuizManagementPage = () => {
       }
 
       setQuiz(current);
-      setQuestionsLoading(true);
-      const questionsList = await getQuizQuestions(current.id);
-      setQuestions(questionsList || []);
+      await loadQuestions(current.id, 0);
     } catch (err) {
       setError(formatApiError(err, 'Failed to load quiz details.'));
     } finally {
       setLoading(false);
-      setQuestionsLoading(false);
     }
-  }, [quizId]);
+  }, [quizId, loadQuestions]);
 
   useEffect(() => {
     loadData();
@@ -78,18 +99,10 @@ export const QuizManagementPage = () => {
     navigate(`/admin/quizzes/${selectedId}`);
   };
 
-  // Refresh question list after Excel upload or manual add
-  const refreshQuestions = async () => {
+  // Refresh question list
+  const refreshQuestions = async (page = 0) => {
     if (!quiz) return;
-    setQuestionsLoading(true);
-    try {
-      const qList = await getQuizQuestions(quiz.id);
-      setQuestions(qList || []);
-    } catch (err) {
-      setError(formatApiError(err, 'Failed to refresh questions.'));
-    } finally {
-      setQuestionsLoading(false);
-    }
+    await loadQuestions(quiz.id, page);
   };
 
   // Toggle active status
@@ -133,10 +146,13 @@ export const QuizManagementPage = () => {
 
   // Delete question
   const handleDeleteQuestion = async (questionId) => {
+    if (!quiz) return;
     try {
       await deleteQuestion(questionId);
-      setQuestions((prev) => prev.filter((q) => q.id !== questionId));
       setFeedback('Question deleted successfully.');
+      // If deleting the last question on a page causes that page to become empty, move to previous page
+      const targetPage = (questions.length === 1 && questionPage > 0) ? questionPage - 1 : questionPage;
+      await loadQuestions(quiz.id, targetPage);
     } catch (err) {
       setError(formatApiError(err, 'Failed to delete question.'));
     }
@@ -146,9 +162,9 @@ export const QuizManagementPage = () => {
   const handleAddQuestion = async (questionData) => {
     if (!quiz) return;
     try {
-      const created = await addQuestion(quiz.id, questionData);
-      setQuestions((prev) => [...prev, created]);
+      await addQuestion(quiz.id, questionData);
       setFeedback('Question added successfully.');
+      await loadQuestions(quiz.id, questionPage);
     } catch (err) {
       throw new Error(formatApiError(err, 'Failed to add question.'));
     }
@@ -263,7 +279,7 @@ export const QuizManagementPage = () => {
 
                 <div className="header-meta-tags">
                   <span className="meta-tag">⏱️ {quiz.durationMinutes} Minutes</span>
-                  <span className="meta-tag">❓ {questions.length} Questions</span>
+                  <span className="meta-tag">❓ {totalQuestionsCount} Questions</span>
                   <span className="meta-tag">
                     📊 Score Display: {quiz.showScore ? 'Enabled' : 'Disabled'}
                   </span>
@@ -297,7 +313,7 @@ export const QuizManagementPage = () => {
                 }`}
                 onClick={() => setActiveTab('questions')}
               >
-                A. Questions ({questions.length})
+                A. Questions ({totalQuestionsCount})
               </button>
 
               <button
@@ -327,6 +343,10 @@ export const QuizManagementPage = () => {
                 <QuestionList
                   questions={questions}
                   loading={questionsLoading}
+                  currentPage={questionPage}
+                  totalPages={totalQuestionPages}
+                  totalElements={totalQuestionsCount}
+                  onPageChange={(newPage) => loadQuestions(quiz.id, newPage)}
                   onDeleteQuestion={handleDeleteQuestion}
                   onAddQuestion={handleAddQuestion}
                 />
@@ -336,7 +356,7 @@ export const QuizManagementPage = () => {
                 <ExcelUpload
                   quizId={quiz.id}
                   onUploadSuccess={async (res) => {
-                    await refreshQuestions();
+                    await refreshQuestions(0);
                     setFeedback(
                       `${res.importedQuestions || 'Excel'} questions imported successfully!`
                     );
