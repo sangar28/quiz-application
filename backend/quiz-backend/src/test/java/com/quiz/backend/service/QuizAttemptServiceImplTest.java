@@ -89,6 +89,9 @@ class QuizAttemptServiceImplTest {
         assertEquals(100L, dto.getAttemptId());
         assertEquals(10L, dto.getQuizId());
         assertEquals(validAttempt.getExpiresAt(), dto.getExpiresAt());
+        assertNotNull(dto.getRemainingSeconds());
+        assertTrue(dto.getRemainingSeconds() > 0, "Remaining seconds must be positive for active attempt");
+        assertFalse(dto.isSubmitted());
     }
 
     @Test

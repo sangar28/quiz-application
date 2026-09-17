@@ -1,33 +1,48 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export const QuizTimer = ({ expiresAt, onExpire }) => {
-  const [secondsLeft, setSecondsLeft] = useState(() => {
-    if (!expiresAt) return 0;
-    const target = new Date(expiresAt).getTime();
-    return Math.max(0, Math.floor((target - Date.now()) / 1000));
-  });
-
+export const QuizTimer = ({ expiresAt, remainingSeconds, onExpire }) => {
+  const endTimeRef = useRef(null);
   const hasExpiredRef = useRef(false);
 
-  useEffect(() => {
-    if (!expiresAt) return;
-
-    const calculateRemaining = () => {
+  // Helper to determine initial seconds from authoritative remainingSeconds or fallback expiresAt
+  const getInitialSeconds = () => {
+    if (remainingSeconds !== undefined && remainingSeconds !== null && !isNaN(remainingSeconds)) {
+      const sec = Math.floor(Number(remainingSeconds));
+      return sec > 0 ? sec : 0;
+    }
+    if (expiresAt) {
       const target = new Date(expiresAt).getTime();
-      return Math.max(0, Math.floor((target - Date.now()) / 1000));
-    };
+      if (!isNaN(target)) {
+        const sec = Math.floor((target - Date.now()) / 1000);
+        return sec > 0 ? sec : 0;
+      }
+    }
+    return null;
+  };
 
-    const initial = calculateRemaining();
-    setSecondsLeft(initial);
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const sec = getInitialSeconds();
+    if (sec !== null && sec > 0) {
+      endTimeRef.current = Date.now() + sec * 1000;
+    }
+    return sec;
+  });
 
-    if (initial <= 0 && !hasExpiredRef.current) {
-      hasExpiredRef.current = true;
-      if (onExpire) onExpire();
+  useEffect(() => {
+    const sec = getInitialSeconds();
+    if (sec === null || isNaN(sec)) {
+      // Invalid or missing value - do not auto-submit
       return;
     }
 
+    if (endTimeRef.current === null) {
+      endTimeRef.current = Date.now() + sec * 1000;
+      setSecondsLeft(sec);
+    }
+
     const interval = setInterval(() => {
-      const remaining = calculateRemaining();
+      if (endTimeRef.current === null) return;
+      const remaining = Math.max(0, Math.floor((endTimeRef.current - Date.now()) / 1000));
       setSecondsLeft(remaining);
 
       if (remaining <= 0) {
@@ -40,9 +55,12 @@ export const QuizTimer = ({ expiresAt, onExpire }) => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [expiresAt, onExpire]);
+  }, [remainingSeconds, expiresAt, onExpire]);
 
   const formatTime = (totalSeconds) => {
+    if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds)) {
+      return '--:--';
+    }
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
@@ -55,8 +73,8 @@ export const QuizTimer = ({ expiresAt, onExpire }) => {
     return `${pad(minutes)}:${pad(seconds)}`;
   };
 
-  const isUrgent = secondsLeft > 0 && secondsLeft < 60;
-  const isWarning = secondsLeft >= 60 && secondsLeft <= 300;
+  const isUrgent = secondsLeft !== null && secondsLeft > 0 && secondsLeft < 60;
+  const isWarning = secondsLeft !== null && secondsLeft >= 60 && secondsLeft <= 300;
 
   return (
     <div
@@ -72,3 +90,4 @@ export const QuizTimer = ({ expiresAt, onExpire }) => {
     </div>
   );
 };
+

@@ -50,11 +50,11 @@ export const StudentQuizPage = () => {
   // Initialize and continuously sync attemptIdRef and quizRef
   const attemptIdRef = useRef(searchParams.get('attemptId') || null);
   if (attempt?.attemptId) {
-    attemptIdRef.current = attempt.attemptId;
+    attemptIdRef.current = String(attempt.attemptId);
   }
   const currentUrlAttemptId = searchParams.get('attemptId');
   if (currentUrlAttemptId && !attemptIdRef.current) {
-    attemptIdRef.current = currentUrlAttemptId;
+    attemptIdRef.current = String(currentUrlAttemptId);
   }
 
   const quizRef = useRef(quiz);
@@ -81,6 +81,10 @@ export const StudentQuizPage = () => {
       if (!currentAttemptId) {
         console.warn('[QUIZ] Submission blocked: attemptId is unavailable');
         return;
+      }
+
+      if (reason) {
+        console.warn('[QUIZ] performSubmit triggered with reason:', reason);
       }
 
       console.log('[QUIZ] Calling performSubmit', {
@@ -130,33 +134,27 @@ export const StudentQuizPage = () => {
           }
         }
 
-        console.log('[QUIZ] Navigating after submission');
         const immediate = quizRef.current?.immediateResult ?? quiz?.immediateResult ?? true;
-        if (immediate) {
-          navigate(`/student/result/${currentAttemptId}`, { replace: true });
-        } else {
-          navigate('/student', { replace: true });
-        }
+        const targetRoute = immediate ? `/student/result/${currentAttemptId}` : '/student';
+        console.warn('[QUIZ] Redirecting from exam:', { reason: 'Submission completed', target: targetRoute });
+        navigate(targetRoute, { replace: true });
       } catch (err) {
-        console.error('[QUIZ] Submit failed', err);
+        console.error('[QUIZ] API error:', err);
         const errMsg =
           err.response?.data?.message ||
           (typeof err.response?.data === 'string' ? err.response?.data : '');
 
         // If backend reports already submitted, cleanly proceed to result / dashboard
         if (errMsg.toLowerCase().includes('already been submitted')) {
-          console.log('[QUIZ] Attempt was already submitted on server, navigating to result');
+          console.warn('[QUIZ] Redirecting from exam:', 'Attempt already submitted on server');
           if (document.fullscreenElement) {
             try {
               await document.exitFullscreen();
             } catch (ignored) {}
           }
           const immediate = quizRef.current?.immediateResult ?? quiz?.immediateResult ?? true;
-          if (immediate) {
-            navigate(`/student/result/${currentAttemptId}`, { replace: true });
-          } else {
-            navigate('/student', { replace: true });
-          }
+          const targetRoute = immediate ? `/student/result/${currentAttemptId}` : '/student';
+          navigate(targetRoute, { replace: true });
           return;
         }
 
@@ -263,12 +261,16 @@ export const StudentQuizPage = () => {
     const initializeQuiz = async () => {
       setLoading(true);
       setError(null);
+      const paramAttemptId = searchParams.get('attemptId');
+      console.log('[QUIZ] URL attemptId:', paramAttemptId);
+
       try {
-        // 1. Fetch active quiz settings
+        // 1. Fetch active quiz settings for display and security rules (copy, paste, tab-switch)
         let currentQuiz = null;
         try {
           currentQuiz = await getQuizById(quizId);
-        } catch {
+        } catch (quizErr) {
+          console.error('[QUIZ] API error:', quizErr);
           const allQuizzes = await getActiveQuizzes();
           currentQuiz = allQuizzes.find((q) => String(q.id) === String(quizId));
         }
@@ -286,18 +288,23 @@ export const StudentQuizPage = () => {
           quizRef.current = currentQuiz;
         }
 
-        // 2. Obtain attempt (either validate existing attempt from URL or start/resume from backend)
+        // 2. Obtain attempt (validate existing attempt from URL or start/resume from backend)
         let attemptData = null;
-        const paramAttemptId = searchParams.get('attemptId');
 
         if (paramAttemptId) {
-          // AttemptId in URL takes priority as source of truth
+          // AttemptId in URL takes absolute priority as authoritative source of truth.
+          // Historical Result / alreadySubmitted on the quiz is completely ignored.
+          console.log('[QUIZ] Validating attempt:', paramAttemptId);
           try {
             attemptData = await getAttempt(paramAttemptId);
+            console.log('[QUIZ] Attempt validation success:', attemptData);
           } catch (attemptErr) {
+            console.error('[QUIZ] API error:', attemptErr);
             const msg = attemptErr.response?.data?.message || '';
             if (msg.toLowerCase().includes('already been submitted')) {
-              if (currentQuiz.immediateResult) {
+              console.warn('[QUIZ] Redirecting from exam:', 'Attempt has already been submitted');
+              const immediate = currentQuiz.immediateResult ?? true;
+              if (immediate) {
                 navigate(`/student/result/${paramAttemptId}`, { replace: true });
                 return;
               }
@@ -305,10 +312,14 @@ export const StudentQuizPage = () => {
             throw attemptErr;
           }
         } else {
-          // No attemptId in URL -> startQuiz resumes unexpired attempt or creates a new one
+          // Only when NO attemptId exists in URL do we request the backend to start or resume an attempt
+          console.log('[QUIZ] startQuiz called');
           attemptData = await startQuiz(quizId);
+          console.log('[QUIZ] startQuiz returned:', attemptData);
+
+          const newAttemptId = String(attemptData.attemptId);
           if (isMounted) {
-            setSearchParams({ attemptId: String(attemptData.attemptId) }, { replace: true });
+            setSearchParams({ attemptId: newAttemptId }, { replace: true });
           }
         }
 
@@ -316,15 +327,18 @@ export const StudentQuizPage = () => {
           throw new Error('Could not establish an active quiz attempt.');
         }
 
-        const resolvedAttemptId = attemptData.attemptId || attemptData.id || paramAttemptId;
+        const resolvedAttemptId = String(attemptData.attemptId || paramAttemptId);
 
         if (isMounted) {
           setAttempt(attemptData);
           attemptIdRef.current = resolvedAttemptId;
         }
 
-        // 3. Fetch attempt questions
+        // 3. Fetch attempt questions for this specific attempt
+        console.log('[QUIZ] Loading questions for attempt:', resolvedAttemptId);
         const questionList = await getAttemptQuestions(resolvedAttemptId);
+        console.log('[QUIZ] Questions loaded:', questionList ? questionList.length : 0);
+
         if (!questionList || questionList.length === 0) {
           if (isMounted) {
             setError('No questions have been configured for this quiz.');
@@ -337,6 +351,7 @@ export const StudentQuizPage = () => {
           setQuestions(questionList);
         }
       } catch (err) {
+        console.error('[QUIZ] Exam initialization failed:', err);
         if (isMounted) {
           setError(formatApiError(err, 'Failed to load quiz attempt.'));
         }
@@ -510,9 +525,10 @@ export const StudentQuizPage = () => {
           </div>
 
           <div className="exam-controls-box">
-            {attempt?.expiresAt && (
+            {(attempt?.expiresAt || attempt?.remainingSeconds !== undefined) && (
               <QuizTimer
-                expiresAt={attempt.expiresAt}
+                expiresAt={attempt?.expiresAt}
+                remainingSeconds={attempt?.remainingSeconds}
                 onExpire={handleTimerExpire}
               />
             )}

@@ -67,11 +67,14 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         if (unfinishedAttempt.isPresent()) {
             QuizAttempt attempt = unfinishedAttempt.get();
             if (LocalDateTime.now().isBefore(attempt.getExpiresAt())) {
+                long remainingSeconds = Math.max(0, java.time.Duration.between(LocalDateTime.now(), attempt.getExpiresAt()).getSeconds());
                 return new QuizAttemptResponseDTO(
                         attempt.getId(),
                         quizId,
                         attempt.getStartedAt(),
-                        attempt.getExpiresAt()
+                        attempt.getExpiresAt(),
+                        remainingSeconds,
+                        attempt.isSubmitted()
                 );
             }
         }
@@ -97,11 +100,14 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         QuizAttempt newAttempt = new QuizAttempt(user, quiz, startedAt, expiresAt);
         newAttempt = quizAttemptRepository.save(newAttempt);
 
+        long remainingSeconds = Math.max(0, java.time.Duration.between(LocalDateTime.now(), expiresAt).getSeconds());
         return new QuizAttemptResponseDTO(
                 newAttempt.getId(),
                 quizId,
                 newAttempt.getStartedAt(),
-                newAttempt.getExpiresAt()
+                newAttempt.getExpiresAt(),
+                remainingSeconds,
+                newAttempt.isSubmitted()
         );
     }
 
@@ -129,11 +135,14 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quiz is not active");
         }
 
+        long attemptRemainingSeconds = Math.max(0, java.time.Duration.between(LocalDateTime.now(), attempt.getExpiresAt()).getSeconds());
         return new QuizAttemptResponseDTO(
                 attempt.getId(),
                 quiz.getId(),
                 attempt.getStartedAt(),
-                attempt.getExpiresAt()
+                attempt.getExpiresAt(),
+                attemptRemainingSeconds,
+                attempt.isSubmitted()
         );
     }
 

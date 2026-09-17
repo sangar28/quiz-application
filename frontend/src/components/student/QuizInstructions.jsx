@@ -49,6 +49,20 @@ export const QuizInstructions = () => {
     setStarting(true);
     setError(null);
     try {
+      if (quiz?.activeAttemptId) {
+        // Request fullscreen directly from the user click gesture
+        try {
+          if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          }
+        } catch (fsErr) {
+          console.warn('Fullscreen request denied or unsupported:', fsErr);
+        }
+        // Resume existing active attempt directly without calling startQuiz
+        navigate(`/student/quiz/${quizId}?attemptId=${quiz.activeAttemptId}`);
+        return;
+      }
+
       const attempt = await startQuiz(quizId);
 
       // Request fullscreen directly from the user click gesture
@@ -154,13 +168,19 @@ export const QuizInstructions = () => {
             </div>
 
             <div className="instructions-body">
-              {quiz.alreadySubmitted && !quiz.retakeApproved && (
+              {quiz.activeAttemptId && (
+                <div className="alert alert-info" style={{ marginBottom: '20px' }}>
+                  <span>ℹ️ You have an active, in-progress attempt for this quiz. Resuming will return you directly to your assessment session.</span>
+                </div>
+              )}
+
+              {!quiz.activeAttemptId && quiz.alreadySubmitted && !quiz.retakeApproved && (
                 <div className="alert alert-warning" style={{ marginBottom: '20px' }}>
                   <span>⚠️ You have already submitted this quiz. A retake requires administrator approval before you can start again.</span>
                 </div>
               )}
 
-              {quiz.alreadySubmitted && quiz.retakeApproved && (
+              {!quiz.activeAttemptId && quiz.alreadySubmitted && quiz.retakeApproved && (
                 <div className="alert alert-success" style={{ marginBottom: '20px' }}>
                   <span>✅ Your retake request has been approved by the administrator. Starting now will generate a fresh attempt with full time.</span>
                 </div>
@@ -200,12 +220,20 @@ export const QuizInstructions = () => {
               </button>
               <button
                 type="button"
-                className={`btn btn-lg ${quiz.alreadySubmitted && quiz.retakeApproved ? 'btn-success' : 'btn-primary'}`}
+                className={`btn btn-lg ${
+                  quiz.activeAttemptId
+                    ? 'btn-warning'
+                    : quiz.alreadySubmitted && quiz.retakeApproved
+                    ? 'btn-success'
+                    : 'btn-primary'
+                }`}
                 onClick={handleStart}
-                disabled={starting || (quiz.alreadySubmitted && !quiz.retakeApproved)}
+                disabled={starting || (!quiz.activeAttemptId && quiz.alreadySubmitted && !quiz.retakeApproved)}
               >
                 {starting
                   ? 'Starting Attempt...'
+                  : quiz.activeAttemptId
+                  ? 'Resume Quiz \u2192'
                   : quiz.alreadySubmitted && quiz.retakeApproved
                   ? 'Start Retake Now \u2192'
                   : quiz.alreadySubmitted
