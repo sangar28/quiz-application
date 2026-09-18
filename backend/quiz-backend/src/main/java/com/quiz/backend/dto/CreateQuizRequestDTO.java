@@ -15,6 +15,12 @@ public class CreateQuizRequestDTO {
     @Positive(message = "Duration in minutes must be positive")
     private Integer durationMinutes;
 
+    private boolean detectTabSwitch = true;
+
+    private boolean autoSubmitOnViolation = true;
+
+    private Integer violationThreshold = 3;
+
     public CreateQuizRequestDTO() {
     }
 
@@ -22,6 +28,9 @@ public class CreateQuizRequestDTO {
         this.title = title;
         this.description = description;
         this.durationMinutes = durationMinutes;
+        this.detectTabSwitch = true;
+        this.autoSubmitOnViolation = true;
+        this.violationThreshold = 3;
     }
 
     public String getTitle() {
@@ -46,5 +55,29 @@ public class CreateQuizRequestDTO {
 
     public void setDurationMinutes(Integer durationMinutes) {
         this.durationMinutes = durationMinutes;
+    }
+
+    public boolean isDetectTabSwitch() {
+        return detectTabSwitch;
+    }
+
+    public void setDetectTabSwitch(boolean detectTabSwitch) {
+        this.detectTabSwitch = detectTabSwitch;
+    }
+
+    public boolean isAutoSubmitOnViolation() {
+        return autoSubmitOnViolation;
+    }
+
+    public void setAutoSubmitOnViolation(boolean autoSubmitOnViolation) {
+        this.autoSubmitOnViolation = autoSubmitOnViolation;
+    }
+
+    public Integer getViolationThreshold() {
+        return violationThreshold;
+    }
+
+    public void setViolationThreshold(Integer violationThreshold) {
+        this.violationThreshold = violationThreshold;
     }
 }

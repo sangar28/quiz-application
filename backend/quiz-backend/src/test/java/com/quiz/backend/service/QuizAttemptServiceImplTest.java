@@ -1,7 +1,9 @@
 package com.quiz.backend.service;
 
+import com.quiz.backend.dto.QuestionResponseDTO;
 import com.quiz.backend.dto.QuizAttemptResponseDTO;
 import com.quiz.backend.dto.QuizResponseDTO;
+import com.quiz.backend.entity.Question;
 import com.quiz.backend.entity.Quiz;
 import com.quiz.backend.entity.QuizAttempt;
 import com.quiz.backend.entity.Result;
@@ -20,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -184,5 +188,36 @@ class QuizAttemptServiceImplTest {
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> quizAttemptService.startQuiz(10L));
         assertTrue(ex.getReason().contains("already been submitted"));
+    }
+
+    @Test
+    void testGetAttemptQuestions_RandomQuestions_StableOrderForSameAttemptId() {
+        activeQuiz.setRandomQuestions(true);
+        when(quizAttemptRepository.findById(100L)).thenReturn(Optional.of(validAttempt));
+        when(securityUtils.getCurrentUser()).thenReturn(studentUser);
+
+        List<Question> questions = new ArrayList<>();
+        for (long i = 1; i <= 10; i++) {
+            Question q = new Question();
+            q.setId(i);
+            q.setQuiz(activeQuiz);
+            q.setQuestionText("Question " + i);
+            q.setOptionA("A");
+            q.setOptionB("B");
+            q.setOptionC("C");
+            q.setOptionD("D");
+            q.setCorrectOption("A");
+            questions.add(q);
+        }
+        when(questionRepository.findByQuizId(10L)).thenReturn(questions);
+
+        List<QuestionResponseDTO> firstCall = quizAttemptService.getAttemptQuestions(100L);
+        List<QuestionResponseDTO> secondCall = quizAttemptService.getAttemptQuestions(100L);
+
+        assertEquals(10, firstCall.size());
+        assertEquals(10, secondCall.size());
+        for (int i = 0; i < firstCall.size(); i++) {
+            assertEquals(firstCall.get(i).getId(), secondCall.get(i).getId(), "Question order must be identical on refresh");
+        }
     }
 }

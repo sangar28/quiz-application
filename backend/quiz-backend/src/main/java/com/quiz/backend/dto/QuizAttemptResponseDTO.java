@@ -1,14 +1,26 @@
 package com.quiz.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 
 public class QuizAttemptResponseDTO {
 
+    @JsonProperty("attemptId")
     private Long attemptId;
+
+    @JsonProperty("quizId")
     private Long quizId;
+
+    @JsonProperty("startedAt")
     private LocalDateTime startedAt;
+
+    @JsonProperty("expiresAt")
     private LocalDateTime expiresAt;
+
+    @JsonProperty("remainingSeconds")
     private Long remainingSeconds;
+
+    @JsonProperty("submitted")
     private boolean submitted;
 
     public QuizAttemptResponseDTO() {

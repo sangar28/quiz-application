@@ -40,6 +40,11 @@ public class QuizAdminServiceImpl implements QuizAdminService {
     public AdminQuizResponseDTO createQuiz(CreateQuizRequestDTO request) {
         Quiz quiz = new Quiz(request.getTitle(), request.getDescription(), request.getDurationMinutes());
         quiz.setActive(false);
+        quiz.setDetectTabSwitch(request.isDetectTabSwitch());
+        quiz.setAutoSubmitOnViolation(request.isAutoSubmitOnViolation());
+        if (request.getViolationThreshold() != null && request.getViolationThreshold() > 0) {
+            quiz.setViolationThreshold(request.getViolationThreshold());
+        }
         Quiz savedQuiz = quizRepository.save(quiz);
         return mapToAdminQuizResponseDTO(savedQuiz);
     }

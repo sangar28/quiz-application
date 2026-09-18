@@ -1,43 +1,51 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export const QuizTimer = ({ expiresAt, remainingSeconds, onExpire }) => {
+export const QuizTimer = ({ remainingSeconds, expiresAt, attemptId, onExpire }) => {
+  console.log('[TIMER] QuizTimer props:', {
+    remainingSeconds,
+    expiresAt,
+    attemptId,
+  });
+
   const endTimeRef = useRef(null);
   const hasExpiredRef = useRef(false);
+  const onExpireRef = useRef(onExpire);
+  onExpireRef.current = onExpire;
 
-  // Helper to determine initial seconds from authoritative remainingSeconds or fallback expiresAt
-  const getInitialSeconds = () => {
-    if (remainingSeconds !== undefined && remainingSeconds !== null && !isNaN(remainingSeconds)) {
-      const sec = Math.floor(Number(remainingSeconds));
-      return sec > 0 ? sec : 0;
-    }
-    if (expiresAt) {
-      const target = new Date(expiresAt).getTime();
-      if (!isNaN(target)) {
-        const sec = Math.floor((target - Date.now()) / 1000);
-        return sec > 0 ? sec : 0;
-      }
-    }
-    return null;
+  // Step 3 & 4: Strictly parse remainingSeconds.
+  // DO NOT use new Date(expiresAt).
+  // DO NOT convert undefined/null/NaN to 0.
+  const getValidSeconds = (val) => {
+    if (val === undefined || val === null || val === '') return null;
+    const num = Number(val);
+    if (!Number.isFinite(num) || num <= 0) return null;
+    return Math.floor(num);
   };
 
+  const initial = getValidSeconds(remainingSeconds);
+  console.log('[TIMER] Initial remainingSeconds:', remainingSeconds);
+  console.log('[TIMER] Calculated initial seconds:', initial);
+
   const [secondsLeft, setSecondsLeft] = useState(() => {
-    const sec = getInitialSeconds();
-    if (sec !== null && sec > 0) {
-      endTimeRef.current = Date.now() + sec * 1000;
+    if (initial !== null && initial > 0) {
+      endTimeRef.current = Date.now() + initial * 1000;
+      return initial;
     }
-    return sec;
+    return null;
   });
 
   useEffect(() => {
-    const sec = getInitialSeconds();
-    if (sec === null || isNaN(sec)) {
-      // Invalid or missing value - do not auto-submit
+    const validSec = getValidSeconds(remainingSeconds);
+
+    // If remainingSeconds is missing, invalid, or non-positive, do NOT start timer and DO NOT call onExpire()
+    if (validSec === null || validSec <= 0) {
+      console.warn('[TIMER] No valid remainingSeconds provided. Timer inactive.', remainingSeconds);
       return;
     }
 
     if (endTimeRef.current === null) {
-      endTimeRef.current = Date.now() + sec * 1000;
-      setSecondsLeft(sec);
+      endTimeRef.current = Date.now() + validSec * 1000;
+      setSecondsLeft(validSec);
     }
 
     const interval = setInterval(() => {
@@ -45,20 +53,28 @@ export const QuizTimer = ({ expiresAt, remainingSeconds, onExpire }) => {
       const remaining = Math.max(0, Math.floor((endTimeRef.current - Date.now()) / 1000));
       setSecondsLeft(remaining);
 
+      // ONLY if an active timer genuinely reaches 0
       if (remaining <= 0) {
         clearInterval(interval);
         if (!hasExpiredRef.current) {
           hasExpiredRef.current = true;
-          if (onExpire) onExpire();
+          console.log('[TIMER] onExpire triggered');
+          console.log('[TIMER] onExpire callback invoked');
+          if (onExpireRef.current) {
+            onExpireRef.current();
+          }
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [remainingSeconds, expiresAt, onExpire]);
+  }, [remainingSeconds]);
 
   const formatTime = (totalSeconds) => {
-    if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds)) {
+    if (totalSeconds === null || totalSeconds === undefined || isNaN(totalSeconds) || totalSeconds <= 0) {
+      if (totalSeconds === 0 && hasExpiredRef.current) {
+        return '00:00';
+      }
       return '--:--';
     }
     const hours = Math.floor(totalSeconds / 3600);
@@ -90,4 +106,3 @@ export const QuizTimer = ({ expiresAt, remainingSeconds, onExpire }) => {
     </div>
   );
 };
-

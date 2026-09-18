@@ -29,7 +29,7 @@ public class UpdateQuizRequestDTO {
 
     private boolean detectTabSwitch = true;
 
-    private boolean autoSubmitOnViolation = false;
+    private boolean autoSubmitOnViolation = true;
 
     @Positive(message = "violationThreshold must be greater than 0")
     private Integer violationThreshold = 3;

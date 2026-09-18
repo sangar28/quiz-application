@@ -22,9 +22,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -61,13 +63,22 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
 
         User user = securityUtils.getCurrentUser();
 
+        System.out.println("[SERVER TIMEZONE] ZoneId.systemDefault() = " + java.time.ZoneId.systemDefault());
+        System.out.println("[SERVER TIMEZONE] ZonedDateTime.now() = " + java.time.ZonedDateTime.now());
+        System.out.println("[SERVER TIMEZONE] LocalDateTime.now() = " + java.time.LocalDateTime.now());
+        System.out.println("[ATTEMPT] Quiz duration = " + quiz.getDurationMinutes());
+
         Optional<QuizAttempt> unfinishedAttempt = quizAttemptRepository
                 .findFirstByUserIdAndQuizIdAndSubmittedFalseOrderByStartedAtDesc(user.getId(), quizId);
 
         if (unfinishedAttempt.isPresent()) {
             QuizAttempt attempt = unfinishedAttempt.get();
+            long remainingSeconds = Math.max(0, java.time.Duration.between(LocalDateTime.now(), attempt.getExpiresAt()).getSeconds());
+            System.out.println("[ATTEMPT TIMER] (Resumed) now = " + java.time.LocalDateTime.now());
+            System.out.println("[ATTEMPT TIMER] (Resumed) startedAt = " + attempt.getStartedAt());
+            System.out.println("[ATTEMPT TIMER] (Resumed) expiresAt = " + attempt.getExpiresAt());
+            System.out.println("[ATTEMPT TIMER] (Resumed) remainingSeconds = " + remainingSeconds);
             if (LocalDateTime.now().isBefore(attempt.getExpiresAt())) {
-                long remainingSeconds = Math.max(0, java.time.Duration.between(LocalDateTime.now(), attempt.getExpiresAt()).getSeconds());
                 return new QuizAttemptResponseDTO(
                         attempt.getId(),
                         quizId,
@@ -94,13 +105,17 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
 
         LocalDateTime startedAt = LocalDateTime.now();
-        int duration = quiz.getDurationMinutes() != null ? quiz.getDurationMinutes() : 0;
+        int duration = (quiz.getDurationMinutes() != null && quiz.getDurationMinutes() > 0) ? quiz.getDurationMinutes() : 60;
         LocalDateTime expiresAt = startedAt.plusMinutes(duration);
 
         QuizAttempt newAttempt = new QuizAttempt(user, quiz, startedAt, expiresAt);
         newAttempt = quizAttemptRepository.save(newAttempt);
 
         long remainingSeconds = Math.max(0, java.time.Duration.between(LocalDateTime.now(), expiresAt).getSeconds());
+        System.out.println("[ATTEMPT TIMER] (New) now = " + java.time.LocalDateTime.now());
+        System.out.println("[ATTEMPT TIMER] (New) startedAt = " + newAttempt.getStartedAt());
+        System.out.println("[ATTEMPT TIMER] (New) expiresAt = " + newAttempt.getExpiresAt());
+        System.out.println("[ATTEMPT TIMER] (New) remainingSeconds = " + remainingSeconds);
         return new QuizAttemptResponseDTO(
                 newAttempt.getId(),
                 quizId,
@@ -136,6 +151,10 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
 
         long attemptRemainingSeconds = Math.max(0, java.time.Duration.between(LocalDateTime.now(), attempt.getExpiresAt()).getSeconds());
+        System.out.println("[ATTEMPT TIMER] (getAttempt) now = " + java.time.LocalDateTime.now());
+        System.out.println("[ATTEMPT TIMER] (getAttempt) startedAt = " + attempt.getStartedAt());
+        System.out.println("[ATTEMPT TIMER] (getAttempt) expiresAt = " + attempt.getExpiresAt());
+        System.out.println("[ATTEMPT TIMER] (getAttempt) remainingSeconds = " + attemptRemainingSeconds);
         return new QuizAttemptResponseDTO(
                 attempt.getId(),
                 quiz.getId(),
@@ -171,8 +190,9 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         }
 
         List<Question> questions = new ArrayList<>(questionRepository.findByQuizId(quiz.getId()));
+        questions.sort(Comparator.comparing(Question::getId));
         if (quiz.isRandomQuestions()) {
-            Collections.shuffle(questions);
+            Collections.shuffle(questions, new Random(attemptId));
         }
 
         return questions.stream()

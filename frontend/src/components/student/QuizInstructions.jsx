@@ -143,28 +143,22 @@ export const QuizInstructions = () => {
               </div>
 
               <div className="meta-box">
-                <span className="meta-icon">🔒</span>
+                <span className="meta-icon">🔐</span>
                 <div className="meta-content">
-                  <span className="meta-label">Anti-Cheating</span>
-                  <span className="meta-val">
-                    {quiz.detectTabSwitch
-                      ? `Tab-Switch Monitored (Max: ${quiz.violationThreshold || 3})`
-                      : 'Standard Mode'}
-                  </span>
+                  <span className="meta-label">Environment</span>
+                  <span className="meta-val">Secure Examination</span>
                 </div>
               </div>
 
-              <div className="meta-box">
-                <span className="meta-icon">↩️</span>
-                <div className="meta-content">
-                  <span className="meta-label">Navigation</span>
-                  <span className="meta-val">
-                    {quiz.allowPreviousQuestion
-                      ? 'Previous Questions Allowed'
-                      : 'Forward Only (No Review)'}
-                  </span>
+              {(quiz.totalQuestions || quiz.questionCount) && (
+                <div className="meta-box">
+                  <span className="meta-icon">📝</span>
+                  <div className="meta-content">
+                    <span className="meta-label">Questions</span>
+                    <span className="meta-val">{quiz.totalQuestions || quiz.questionCount} Questions</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="instructions-body">
@@ -190,20 +184,9 @@ export const QuizInstructions = () => {
               <ul className="instructions-list">
                 <li>Once you start the quiz, the authoritative server-side timer will begin.</li>
                 <li>Your answers are securely recorded and evaluated on the server.</li>
-                {quiz.detectTabSwitch && (
-                  <li className="rule-highlight">
-                    Do not switch browser tabs or minimize the window. Tab switches are tracked by the server.
-                    {quiz.autoSubmitOnViolation && (
-                      <strong> Exceeding the violation limit will automatically submit your quiz.</strong>
-                    )}
-                  </li>
-                )}
-                {!quiz.allowCopy && (
-                  <li>Text selection and copying are disabled for this examination.</li>
-                )}
-                {!quiz.allowRightClick && (
-                  <li>Context menus (right-click) are disabled during this assessment.</li>
-                )}
+                <li className="rule-highlight">
+                  This assessment is conducted in a secure environment. Prohibited activities (such as switching tabs, exiting fullscreen, or using unauthorized shortcuts) will trigger a warning, and repeated violations will automatically submit your quiz.
+                </li>
                 <li>Ensure you have a reliable internet connection before proceeding.</li>
                 <li>When the time reaches zero, your answers will be automatically submitted.</li>
               </ul>

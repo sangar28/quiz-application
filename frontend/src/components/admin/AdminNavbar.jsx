@@ -1,4 +1,3 @@
-import React from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,8 +15,7 @@ export const AdminNavbar = () => {
       <div className="admin-header-inner">
         <div className="admin-brand">
           <Link to="/admin" className="brand-link">
-            <span className="logo-badge">SECE</span>
-            <span className="brand-title">College Quiz Portal</span>
+            <span className="brand-title">SECE Quizora</span>
           </Link>
           <span className="admin-pill">Admin</span>
         </div>
@@ -27,7 +25,7 @@ export const AdminNavbar = () => {
             to="/admin"
             end
             className={({ isActive }) =>
-              `nav-link ${isActive ? 'nav-link-active' : ''}`
+              `nav-link ${isActive ? "nav-link-active" : ""}`
             }
           >
             Dashboard
@@ -35,7 +33,7 @@ export const AdminNavbar = () => {
           <NavLink
             to="/admin/quizzes"
             className={({ isActive }) =>
-              `nav-link ${isActive ? 'nav-link-active' : ''}`
+              `nav-link ${isActive ? "nav-link-active" : ""}`
             }
           >
             Quizzes
@@ -43,7 +41,7 @@ export const AdminNavbar = () => {
           <NavLink
             to="/admin/results"
             className={({ isActive }) =>
-              `nav-link ${isActive ? 'nav-link-active' : ''}`
+              `nav-link ${isActive ? "nav-link-active" : ""}`
             }
           >
             Results
@@ -52,11 +50,13 @@ export const AdminNavbar = () => {
 
         <div className="admin-user-info">
           <div className="user-avatar">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+            {user?.name ? user.name.charAt(0).toUpperCase() : "A"}
           </div>
           <div className="user-details-nav">
-            <span className="user-name">{user?.name || 'Administrator'}</span>
-            <span className="user-email">{user?.email || 'admin@sece.ac.in'}</span>
+            <span className="user-name">{user?.name || "Administrator"}</span>
+            <span className="user-email">
+              {user?.email || "admin@sece.ac.in"}
+            </span>
           </div>
           <button
             type="button"

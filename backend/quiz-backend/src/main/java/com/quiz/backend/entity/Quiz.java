@@ -31,7 +31,7 @@ public class Quiz {
 
     private boolean detectTabSwitch = true;
 
-    private boolean autoSubmitOnViolation = false;
+    private boolean autoSubmitOnViolation = true;
 
     private Integer violationThreshold = 3;
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,8 +15,7 @@ export const StudentNavbar = () => {
       <div className="student-header-inner">
         <div className="student-brand">
           <Link to="/student" className="brand-link">
-            <span className="logo-badge">SECE</span>
-            <span className="brand-title">College Quiz Portal</span>
+            <span className="brand-title">SECE Quizora</span>
           </Link>
           <span className="student-pill">Student</span>
         </div>
@@ -30,11 +28,11 @@ export const StudentNavbar = () => {
 
         <div className="student-user-info">
           <div className="user-avatar user-avatar-student">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'S'}
+            {user?.name ? user.name.charAt(0).toUpperCase() : "S"}
           </div>
           <div className="user-details-nav">
-            <span className="user-name">{user?.name || 'Student'}</span>
-            <span className="user-email">{user?.email || ''}</span>
+            <span className="user-name">{user?.name || "Student"}</span>
+            <span className="user-email">{user?.email || ""}</span>
           </div>
           <button
             type="button"
