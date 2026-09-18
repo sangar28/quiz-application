@@ -19,13 +19,16 @@ export const getAdminResults = async ({ quizId, search, page = 0, size = 10 } = 
   return response.data;
 };
 
-export const exportResultsExcel = async ({ quizId, search } = {}) => {
+export const exportResultsExcel = async ({ quizId, search, columns } = {}) => {
   const params = {};
   if (quizId && quizId !== 'all') {
     params.quizId = quizId;
   }
   if (search && search.trim()) {
     params.search = search.trim();
+  }
+  if (columns && Array.isArray(columns) && columns.length > 0) {
+    params.columns = columns.join(',');
   }
   const response = await apiClient.get('/api/admin/results/export', {
     params,

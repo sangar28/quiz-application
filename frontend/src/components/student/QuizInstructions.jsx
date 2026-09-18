@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { StudentNavbar } from './StudentNavbar';
 import { getActiveQuizzes, getQuizById, startQuiz, formatApiError } from '../../api/studentQuizApi';
+import { useAuth } from '../../context/AuthContext';
+import { StudentRollNumberModal } from './StudentRollNumberModal';
 
 export const QuizInstructions = () => {
   const { quizId } = useParams();
   const navigate = useNavigate();
 
+  const { user } = useAuth();
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [isRollModalOpen, setIsRollModalOpen] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -45,24 +49,10 @@ export const QuizInstructions = () => {
     fetchQuizDetails();
   }, [quizId]);
 
-  const handleStart = async () => {
+  const proceedWithStart = async () => {
     setStarting(true);
     setError(null);
     try {
-      if (quiz?.activeAttemptId) {
-        // Request fullscreen directly from the user click gesture
-        try {
-          if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
-            await document.documentElement.requestFullscreen();
-          }
-        } catch (fsErr) {
-          console.warn('Fullscreen request denied or unsupported:', fsErr);
-        }
-        // Resume existing active attempt directly without calling startQuiz
-        navigate(`/student/quiz/${quizId}?attemptId=${quiz.activeAttemptId}`);
-        return;
-      }
-
       const attempt = await startQuiz(quizId);
 
       // Request fullscreen directly from the user click gesture
@@ -80,6 +70,34 @@ export const QuizInstructions = () => {
       setError(formatApiError(err, 'Failed to start quiz attempt.'));
       setStarting(false);
     }
+  };
+
+  const handleStart = async () => {
+    if (quiz?.activeAttemptId) {
+      // Request fullscreen directly from the user click gesture
+      try {
+        if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (fsErr) {
+        console.warn('Fullscreen request denied or unsupported:', fsErr);
+      }
+      // Resume existing active attempt directly without calling startQuiz
+      navigate(`/student/quiz/${quizId}?attemptId=${quiz.activeAttemptId}`);
+      return;
+    }
+
+    if (!user?.rollNumber) {
+      setIsRollModalOpen(true);
+      return;
+    }
+
+    await proceedWithStart();
+  };
+
+  const handleRollNumberSuccess = async () => {
+    setIsRollModalOpen(false);
+    await proceedWithStart();
   };
 
   return (
@@ -227,6 +245,12 @@ export const QuizInstructions = () => {
           </div>
         )}
       </main>
+
+      <StudentRollNumberModal
+        isOpen={isRollModalOpen}
+        onClose={() => setIsRollModalOpen(false)}
+        onSuccess={handleRollNumberSuccess}
+      />
     </div>
   );
 };

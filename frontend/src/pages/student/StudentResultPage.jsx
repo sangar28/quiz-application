@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { StudentNavbar } from '../../components/student/StudentNavbar';
 import { getAttemptResult, formatApiError } from '../../api/studentQuizApi';
+import { formatKolkataDateTime } from '../../utils/dateFormat';
 
 export const StudentResultPage = () => {
   const { attemptId } = useParams();
@@ -27,22 +28,6 @@ export const StudentResultPage = () => {
 
     fetchResult();
   }, [attemptId]);
-
-  const formatDateTime = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
 
   return (
     <div className="student-page-wrapper">
@@ -118,7 +103,7 @@ export const StudentResultPage = () => {
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Submitted At</span>
-                    <span className="detail-val">{formatDateTime(result.submittedAt)}</span>
+                    <span className="detail-val">{formatKolkataDateTime(result.submittedAt)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Attempt Reference</span>

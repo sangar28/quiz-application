@@ -1,8 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { StudentRollNumberModal } from './StudentRollNumberModal';
 
 export const StudentQuizCard = ({ quiz }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [isRollModalOpen, setIsRollModalOpen] = useState(false);
+
+  const handleStartFlow = () => {
+    if (!user?.rollNumber) {
+      setIsRollModalOpen(true);
+      return;
+    }
+    navigate(`/student/quiz/${quiz.id}/instructions`);
+  };
+
+  const handleRollNumberSuccess = () => {
+    setIsRollModalOpen(false);
+    navigate(`/student/quiz/${quiz.id}/instructions`);
+  };
 
   const handleResumeQuiz = async () => {
     try {
@@ -65,7 +82,7 @@ export const StudentQuizCard = ({ quiz }) => {
             <button
               type="button"
               className="btn btn-success btn-block"
-              onClick={() => navigate(`/student/quiz/${quiz.id}/instructions`)}
+              onClick={handleStartFlow}
             >
               Start Retake &rarr;
             </button>
@@ -81,7 +98,7 @@ export const StudentQuizCard = ({ quiz }) => {
           <button
             type="button"
             className="btn btn-primary btn-block"
-            onClick={() => navigate(`/student/quiz/${quiz.id}/instructions`)}
+            onClick={handleStartFlow}
           >
             Start Quiz &rarr;
           </button>
@@ -118,6 +135,12 @@ export const StudentQuizCard = ({ quiz }) => {
       </div>
 
       {statusInfo.props.children[1]}
+
+      <StudentRollNumberModal
+        isOpen={isRollModalOpen}
+        onClose={() => setIsRollModalOpen(false)}
+        onSuccess={handleRollNumberSuccess}
+      />
     </div>
   );
 };

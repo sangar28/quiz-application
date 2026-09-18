@@ -6,10 +6,13 @@ public class AdminResultResponseDTO {
 
     private Long resultId;
     private String studentName;
+    private String rollNumber;
     private String studentEmail;
     private String quizTitle;
     private Integer score;
     private Integer totalQuestions;
+    private Integer marks;
+    private Integer totalMarks;
     private LocalDateTime submittedAt;
     private boolean retakeApproved;
     private Long attemptId;
@@ -20,40 +23,33 @@ public class AdminResultResponseDTO {
     public AdminResultResponseDTO(Long resultId, String studentName, String studentEmail,
                                   String quizTitle, Integer score, Integer totalQuestions,
                                   LocalDateTime submittedAt) {
-        this.resultId = resultId;
-        this.studentName = studentName;
-        this.studentEmail = studentEmail;
-        this.quizTitle = quizTitle;
-        this.score = score;
-        this.totalQuestions = totalQuestions;
-        this.submittedAt = submittedAt;
-        this.retakeApproved = false;
-        this.attemptId = null;
+        this(resultId, studentName, null, studentEmail, quizTitle, score, totalQuestions, submittedAt, false, null);
     }
 
     public AdminResultResponseDTO(Long resultId, String studentName, String studentEmail,
                                   String quizTitle, Integer score, Integer totalQuestions,
                                   LocalDateTime submittedAt, boolean retakeApproved) {
-        this.resultId = resultId;
-        this.studentName = studentName;
-        this.studentEmail = studentEmail;
-        this.quizTitle = quizTitle;
-        this.score = score;
-        this.totalQuestions = totalQuestions;
-        this.submittedAt = submittedAt;
-        this.retakeApproved = retakeApproved;
-        this.attemptId = null;
+        this(resultId, studentName, null, studentEmail, quizTitle, score, totalQuestions, submittedAt, retakeApproved, null);
     }
 
     public AdminResultResponseDTO(Long resultId, String studentName, String studentEmail,
                                   String quizTitle, Integer score, Integer totalQuestions,
                                   LocalDateTime submittedAt, boolean retakeApproved, Long attemptId) {
+        this(resultId, studentName, null, studentEmail, quizTitle, score, totalQuestions, submittedAt, retakeApproved, attemptId);
+    }
+
+    public AdminResultResponseDTO(Long resultId, String studentName, String rollNumber, String studentEmail,
+                                  String quizTitle, Integer score, Integer totalQuestions,
+                                  LocalDateTime submittedAt, boolean retakeApproved, Long attemptId) {
         this.resultId = resultId;
         this.studentName = studentName;
+        this.rollNumber = rollNumber;
         this.studentEmail = studentEmail;
         this.quizTitle = quizTitle;
         this.score = score;
         this.totalQuestions = totalQuestions;
+        this.marks = score;
+        this.totalMarks = totalQuestions;
         this.submittedAt = submittedAt;
         this.retakeApproved = retakeApproved;
         this.attemptId = attemptId;
@@ -129,5 +125,29 @@ public class AdminResultResponseDTO {
 
     public void setAttemptId(Long attemptId) {
         this.attemptId = attemptId;
+    }
+
+    public String getRollNumber() {
+        return rollNumber;
+    }
+
+    public void setRollNumber(String rollNumber) {
+        this.rollNumber = rollNumber;
+    }
+
+    public Integer getMarks() {
+        return marks != null ? marks : score;
+    }
+
+    public void setMarks(Integer marks) {
+        this.marks = marks;
+    }
+
+    public Integer getTotalMarks() {
+        return totalMarks != null ? totalMarks : totalQuestions;
+    }
+
+    public void setTotalMarks(Integer totalMarks) {
+        this.totalMarks = totalMarks;
     }
 }

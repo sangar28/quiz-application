@@ -72,8 +72,59 @@ public class ResultServiceImpl implements ResultService {
         return PageResponseDTO.from(dtoPage);
     }
 
+    private static final List<String> ALL_COLUMN_KEYS = List.of(
+            "studentName",
+            "rollNumber",
+            "studentEmail",
+            "quiz",
+            "marks",
+            "totalMarks",
+            "percentage",
+            "submittedAt",
+            "retakeStatus",
+            "attemptId"
+    );
+
+    private static final java.util.Map<String, String> COLUMN_HEADERS = java.util.Map.of(
+            "studentName", "Student Name",
+            "rollNumber", "Roll Number",
+            "studentEmail", "Student Email",
+            "quiz", "Quiz",
+            "marks", "Marks",
+            "totalMarks", "Total Marks",
+            "percentage", "Percentage",
+            "submittedAt", "Submitted At",
+            "retakeStatus", "Retake Status",
+            "attemptId", "Attempt ID"
+    );
+
     @Override
     public byte[] exportResultsToExcel(Long quizId, String search) {
+        return exportResultsToExcel(quizId, search, null);
+    }
+
+    @Override
+    public byte[] exportResultsToExcel(Long quizId, String search, List<String> requestedColumns) {
+        List<String> activeColumns;
+        if (requestedColumns == null || requestedColumns.isEmpty()) {
+            activeColumns = ALL_COLUMN_KEYS;
+        } else {
+            java.util.Set<String> requestedSet = requestedColumns.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .flatMap(s -> java.util.Arrays.stream(s.split(",")))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
+
+            activeColumns = ALL_COLUMN_KEYS.stream()
+                    .filter(requestedSet::contains)
+                    .collect(Collectors.toList());
+
+            if (activeColumns.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Select at least one column to download the report.");
+            }
+        }
+
         String cleanSearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
         boolean hasQuiz = quizId != null;
         boolean hasSearch = cleanSearch != null;
@@ -102,39 +153,28 @@ public class ResultServiceImpl implements ResultService {
             headerStyle.setAlignment(HorizontalAlignment.CENTER);
 
             Row headerRow = sheet.createRow(0);
-            String[] columns = {
-                    "Student Name",
-                    "Student Email",
-                    "Quiz",
-                    "Score",
-                    "Total Questions",
-                    "Percentage",
-                    "Submitted At",
-                    "Retake Status",
-                    "Attempt ID"
-            };
-
-            for (int i = 0; i < columns.length; i++) {
+            for (int i = 0; i < activeColumns.size(); i++) {
                 Cell cell = headerRow.createCell(i);
-                cell.setCellValue(columns[i]);
+                cell.setCellValue(COLUMN_HEADERS.get(activeColumns.get(i)));
                 cell.setCellStyle(headerStyle);
             }
 
-            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd-MMM-yyyy hh:mm:ss a", java.util.Locale.ENGLISH);
 
             int rowIdx = 1;
             for (Result r : results) {
                 Row row = sheet.createRow(rowIdx++);
 
                 String studentName = r.getUser() != null ? r.getUser().getName() : "N/A";
+                String rollNumber = (r.getUser() != null && r.getUser().getRollNumber() != null) ? r.getUser().getRollNumber() : "N/A";
                 String studentEmail = r.getUser() != null ? r.getUser().getEmail() : "N/A";
                 String quizTitle = r.getQuiz() != null ? r.getQuiz().getTitle() : "N/A";
-                int score = r.getScore() != null ? r.getScore() : 0;
-                int totalQuestions = r.getTotalQuestions() != null ? r.getTotalQuestions() : 0;
+                int marks = r.getScore() != null ? r.getScore() : 0;
+                int totalMarks = r.getTotalQuestions() != null ? r.getTotalQuestions() : 0;
 
                 String percentageStr;
-                if (totalQuestions > 0) {
-                    double pct = ((double) score / totalQuestions) * 100.0;
+                if (totalMarks > 0) {
+                    double pct = ((double) marks / totalMarks) * 100.0;
                     percentageStr = Math.round(pct) + "%";
                 } else {
                     percentageStr = "0%";
@@ -144,23 +184,32 @@ public class ResultServiceImpl implements ResultService {
                 String retakeStatus = r.isRetakeApproved() ? "APPROVED" : "NOT APPROVED";
                 String attemptIdStr = r.getAttemptId() != null ? String.valueOf(r.getAttemptId()) : "N/A";
 
-                row.createCell(0).setCellValue(studentName != null ? studentName : "N/A");
-                row.createCell(1).setCellValue(studentEmail != null ? studentEmail : "N/A");
-                row.createCell(2).setCellValue(quizTitle != null ? quizTitle : "N/A");
-                row.createCell(3).setCellValue(score);
-                row.createCell(4).setCellValue(totalQuestions);
-                row.createCell(5).setCellValue(percentageStr);
-                row.createCell(6).setCellValue(submittedAtStr);
-                row.createCell(7).setCellValue(retakeStatus);
-                row.createCell(8).setCellValue(attemptIdStr);
+                for (int c = 0; c < activeColumns.size(); c++) {
+                    String colKey = activeColumns.get(c);
+                    Cell cell = row.createCell(c);
+                    switch (colKey) {
+                        case "studentName" -> cell.setCellValue(studentName != null ? studentName : "N/A");
+                        case "rollNumber" -> cell.setCellValue(rollNumber);
+                        case "studentEmail" -> cell.setCellValue(studentEmail != null ? studentEmail : "N/A");
+                        case "quiz" -> cell.setCellValue(quizTitle != null ? quizTitle : "N/A");
+                        case "marks" -> cell.setCellValue(marks);
+                        case "totalMarks" -> cell.setCellValue(totalMarks);
+                        case "percentage" -> cell.setCellValue(percentageStr);
+                        case "submittedAt" -> cell.setCellValue(submittedAtStr);
+                        case "retakeStatus" -> cell.setCellValue(retakeStatus);
+                        case "attemptId" -> cell.setCellValue(attemptIdStr);
+                    }
+                }
             }
 
-            for (int i = 0; i < columns.length; i++) {
+            for (int i = 0; i < activeColumns.size(); i++) {
                 sheet.autoSizeColumn(i);
             }
 
             workbook.write(out);
             return out.toByteArray();
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate Excel file: " + e.getMessage(), e);
         }
@@ -180,12 +229,14 @@ public class ResultServiceImpl implements ResultService {
 
     private AdminResultResponseDTO mapToAdminResultResponseDTO(Result result) {
         String studentName = result.getUser() != null ? result.getUser().getName() : null;
+        String rollNumber = result.getUser() != null ? result.getUser().getRollNumber() : null;
         String studentEmail = result.getUser() != null ? result.getUser().getEmail() : null;
         String quizTitle = result.getQuiz() != null ? result.getQuiz().getTitle() : null;
 
         return new AdminResultResponseDTO(
                 result.getId(),
                 studentName,
+                rollNumber,
                 studentEmail,
                 quizTitle,
                 result.getScore(),

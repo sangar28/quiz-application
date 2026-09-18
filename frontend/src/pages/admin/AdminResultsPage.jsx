@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AdminNavbar } from '../../components/admin/AdminNavbar';
 import { ResultsTable } from '../../components/admin/ResultsTable';
+import { ExcelColumnModal } from '../../components/admin/ExcelColumnModal';
 import { getAllQuizzes, formatApiError } from '../../api/quizAdminApi';
 import { getAdminResults, exportResultsExcel, approveRetake } from '../../api/resultAdminApi';
 
@@ -14,6 +15,8 @@ export const AdminResultsPage = () => {
   const [totalSubmissions, setTotalSubmissions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+  const [exportError, setExportError] = useState(null);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [approvingId, setApprovingId] = useState(null);
@@ -97,13 +100,19 @@ export const AdminResultsPage = () => {
     }
   };
 
-  const handleDownloadExcel = async () => {
+  const handleOpenExportModal = () => {
+    setExportError(null);
+    setIsColumnModalOpen(true);
+  };
+
+  const handleColumnSelectionDownload = async (selectedColumns) => {
     setIsExporting(true);
-    setError(null);
+    setExportError(null);
     try {
       const blob = await exportResultsExcel({
         quizId: selectedQuizId,
         search: searchQuery,
+        columns: selectedColumns,
       });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
@@ -113,8 +122,9 @@ export const AdminResultsPage = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      setIsColumnModalOpen(false);
     } catch (err) {
-      setError(formatApiError(err, 'Failed to download Excel file.'));
+      setExportError(formatApiError(err, 'Unable to download the report. Please try again.'));
     } finally {
       setIsExporting(false);
     }
@@ -136,7 +146,7 @@ export const AdminResultsPage = () => {
           <button
             type="button"
             className="btn btn-primary btn-excel-export"
-            onClick={handleDownloadExcel}
+            onClick={handleOpenExportModal}
             disabled={isExporting}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
@@ -294,6 +304,16 @@ export const AdminResultsPage = () => {
           )}
         </div>
       </main>
+
+      <ExcelColumnModal
+        isOpen={isColumnModalOpen}
+        onClose={() => {
+          if (!isExporting) setIsColumnModalOpen(false);
+        }}
+        onConfirm={handleColumnSelectionDownload}
+        isExporting={isExporting}
+        exportError={exportError}
+      />
     </div>
   );
 };

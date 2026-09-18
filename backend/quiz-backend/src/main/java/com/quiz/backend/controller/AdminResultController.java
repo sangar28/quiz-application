@@ -39,8 +39,9 @@ public class AdminResultController {
     @GetMapping("/export")
     public ResponseEntity<byte[]> exportResults(
             @RequestParam(required = false) Long quizId,
-            @RequestParam(required = false) String search) {
-        byte[] excelBytes = resultService.exportResultsToExcel(quizId, search);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) List<String> columns) {
+        byte[] excelBytes = resultService.exportResultsToExcel(quizId, search, columns);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));

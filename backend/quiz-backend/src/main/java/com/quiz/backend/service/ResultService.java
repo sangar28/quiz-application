@@ -16,5 +16,7 @@ public interface ResultService {
 
     byte[] exportResultsToExcel(Long quizId, String search);
 
+    byte[] exportResultsToExcel(Long quizId, String search, List<String> columns);
+
     AdminResultResponseDTO approveRetake(Long resultId);
 }

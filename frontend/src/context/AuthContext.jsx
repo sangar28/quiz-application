@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getMe, logoutApi } from '../api/authApi';
+import { getMe, updateRollNumberApi, logoutApi } from '../api/authApi';
 
 const AuthContext = createContext(null);
 
@@ -16,6 +16,8 @@ export const AuthProvider = ({ children }) => {
       setUser({
         name: data.name,
         email: data.email,
+        rollNumber: data.rollNumber || null,
+        picture: data.picture || null,
       });
       setRole(data.role);
       setAuthenticated(true);
@@ -27,6 +29,12 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, []);
+
+  const updateRollNumber = useCallback(async (rollNumber) => {
+    const res = await updateRollNumberApi(rollNumber);
+    await checkAuth();
+    return res;
+  }, [checkAuth]);
 
   const logout = useCallback(async () => {
     try {
@@ -52,6 +60,7 @@ export const AuthProvider = ({ children }) => {
         authenticated,
         loading,
         refreshUser: checkAuth,
+        updateRollNumber,
         logout,
       }}
     >

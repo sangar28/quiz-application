@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatKolkataDateTime } from '../../utils/dateFormat';
 
 export const ResultsTable = ({ results = [], loading = false, onApproveRetake, approvingId = null }) => {
   if (loading) {
@@ -21,42 +22,27 @@ export const ResultsTable = ({ results = [], loading = false, onApproveRetake, a
     );
   }
 
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
   return (
     <div className="table-responsive">
       <table className="data-table">
         <thead>
           <tr>
             <th>Student Name</th>
-            <th>Email</th>
+            <th>Roll Number</th>
+            <th>Student Email</th>
             <th>Quiz</th>
-            <th className="text-center">Score</th>
-            <th className="text-center">Total Questions</th>
+            <th className="text-center">Marks</th>
             <th className="text-center">Percentage</th>
             <th>Submitted At</th>
             <th className="text-center">Retake Status</th>
+            <th className="text-center">Actions</th>
           </tr>
         </thead>
         <tbody>
           {results.map((r) => {
-            const total = r.totalQuestions ?? 0;
-            const score = r.score ?? 0;
-            const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+            const marks = r.marks ?? r.score ?? 0;
+            const totalMarks = r.totalMarks ?? r.totalQuestions ?? 0;
+            const pct = totalMarks > 0 ? Math.round((marks / totalMarks) * 100) : 0;
             let badgeClass = 'badge-gray';
             if (pct >= 80) badgeClass = 'badge-success';
             else if (pct >= 50) badgeClass = 'badge-info';
@@ -65,18 +51,33 @@ export const ResultsTable = ({ results = [], loading = false, onApproveRetake, a
             return (
               <tr key={r.resultId}>
                 <td className="font-semibold">{r.studentName || 'Student'}</td>
+                <td className="font-mono text-sm" style={{ fontWeight: 500, color: '#1e293b' }}>
+                  {r.rollNumber || 'N/A'}
+                </td>
                 <td className="text-muted">{r.studentEmail || 'N/A'}</td>
                 <td>{r.quizTitle || 'Quiz'}</td>
-                <td className="text-center font-bold">{score}</td>
-                <td className="text-center">{total}</td>
+                <td className="text-center font-bold" style={{ color: '#0f172a', whiteSpace: 'nowrap' }}>
+                  {marks} / {totalMarks}
+                </td>
                 <td className="text-center">
                   <span className={`badge ${badgeClass}`}>{pct}%</span>
                 </td>
-                <td className="text-muted">{formatDateTime(r.submittedAt)}</td>
+                <td className="text-muted text-sm" style={{ whiteSpace: 'nowrap' }}>
+                  {formatKolkataDateTime(r.submittedAt)}
+                </td>
                 <td className="text-center">
                   {r.retakeApproved ? (
                     <span className="badge badge-success" title="Student can retake this quiz">
-                      Retake Approved
+                      Approved
+                    </span>
+                  ) : (
+                    <span className="badge badge-gray">Not Approved</span>
+                  )}
+                </td>
+                <td className="text-center">
+                  {r.retakeApproved ? (
+                    <span className="text-muted text-xs" style={{ color: '#059669', fontWeight: 500 }}>
+                      Retake Granted
                     </span>
                   ) : onApproveRetake ? (
                     <button
@@ -88,7 +89,7 @@ export const ResultsTable = ({ results = [], loading = false, onApproveRetake, a
                       {approvingId === r.resultId ? 'Approving...' : 'Approve Retake'}
                     </button>
                   ) : (
-                    <span className="badge badge-gray">No Retake</span>
+                    <span className="text-muted text-xs">—</span>
                   )}
                 </td>
               </tr>

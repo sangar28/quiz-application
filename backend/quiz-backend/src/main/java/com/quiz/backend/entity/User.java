@@ -20,6 +20,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role = Role.STUDENT;
 
+    @Column(name = "roll_number")
+    private String rollNumber;
+
     public User() {
     }
 
@@ -68,5 +71,13 @@ public class User {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getRollNumber() {
+        return rollNumber;
+    }
+
+    public void setRollNumber(String rollNumber) {
+        this.rollNumber = rollNumber;
     }
 }

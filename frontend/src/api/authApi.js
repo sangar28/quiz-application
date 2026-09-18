@@ -13,7 +13,14 @@ export const getMe = async () => {
     email: data.email || '',
     role,
     authorities,
+    rollNumber: data.rollNumber || null,
+    picture: data.picture || null,
   };
+};
+
+export const updateRollNumberApi = async (rollNumber) => {
+  const response = await apiClient.post('/api/auth/roll-number', { rollNumber });
+  return response.data;
 };
 
 export const logoutApi = async () => {

@@ -63,6 +63,10 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
 
         User user = securityUtils.getCurrentUser();
 
+        if (user.getRollNumber() == null || user.getRollNumber().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Student roll number is required before starting a quiz attempt.");
+        }
+
         System.out.println("[SERVER TIMEZONE] ZoneId.systemDefault() = " + java.time.ZoneId.systemDefault());
         System.out.println("[SERVER TIMEZONE] ZonedDateTime.now() = " + java.time.ZonedDateTime.now());
         System.out.println("[SERVER TIMEZONE] LocalDateTime.now() = " + java.time.LocalDateTime.now());

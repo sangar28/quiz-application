@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -62,6 +63,7 @@ class QuizAttemptServiceImplTest {
         studentUser.setId(1L);
         studentUser.setEmail("student@college.edu");
         studentUser.setName("Student One");
+        studentUser.setRollNumber("23ME101");
 
         otherUser = new User();
         otherUser.setId(2L);
@@ -219,5 +221,27 @@ class QuizAttemptServiceImplTest {
         for (int i = 0; i < firstCall.size(); i++) {
             assertEquals(firstCall.get(i).getId(), secondCall.get(i).getId(), "Question order must be identical on refresh");
         }
+    }
+
+    @Test
+    void testStartQuiz_WithoutRollNumber_ThrowsBadRequest() {
+        studentUser.setRollNumber(null);
+        when(quizRepository.findById(10L)).thenReturn(Optional.of(activeQuiz));
+        when(securityUtils.getCurrentUser()).thenReturn(studentUser);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> quizAttemptService.startQuiz(10L));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Student roll number is required"));
+    }
+
+    @Test
+    void testStartQuiz_BlankRollNumber_ThrowsBadRequest() {
+        studentUser.setRollNumber("   ");
+        when(quizRepository.findById(10L)).thenReturn(Optional.of(activeQuiz));
+        when(securityUtils.getCurrentUser()).thenReturn(studentUser);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> quizAttemptService.startQuiz(10L));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("Student roll number is required"));
     }
 }
